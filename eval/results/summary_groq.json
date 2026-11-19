@@ -1,0 +1,38 @@
+[
+ {
+  "mode": "vector",
+  "llm": "groq",
+  "cases": 42,
+  "case_pass_pct": 95.2,
+  "retrieval_hit@1_pct": 96.9,
+  "retrieval_mrr": 0.984,
+  "retrieval_hit@3_pct": 100.0,
+  "retrieval_hit@5_pct": 100.0,
+  "not_covered_recall_pct": 100.0,
+  "not_covered_precision_pct": 66.7,
+  "cross_company_leaks": 1,
+  "errors_503": 0,
+  "latency_ms_p50": 644,
+  "latency_ms_p95": 778,
+  "max_llm_calls": 1,
+  "max_citations": 2
+ },
+ {
+  "mode": "hybrid",
+  "llm": "groq",
+  "cases": 42,
+  "case_pass_pct": 95.2,
+  "retrieval_hit@1_pct": 93.8,
+  "retrieval_mrr": 0.958,
+  "retrieval_hit@3_pct": 100.0,
+  "retrieval_hit@5_pct": 100.0,
+  "not_covered_recall_pct": 100.0,
+  "not_covered_precision_pct": 66.7,
+  "cross_company_leaks": 1,
+  "errors_503": 0,
+  "latency_ms_p50": 659,
+  "latency_ms_p95": 902,
+  "max_llm_calls": 1,
+  "max_citations": 2
+ }
+]

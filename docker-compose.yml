@@ -1,7 +1,7 @@
 services:
   api:
     build: .
-    ports: ["8000:8000"]
+    ports: ["${PORT:-8000}:8000"]   # set PORT=8010 if 8000 is taken
     env_file:
       - path: .env        # optional: LLM_PROVIDER=groq and LLM_API_KEY=... (never committed)
         required: false
