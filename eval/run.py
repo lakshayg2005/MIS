@@ -144,17 +144,19 @@ def main():
     for c in cases:
         c["actual"], c["pass"], c["notes"] = None, None, c["notes"].split(" || ")[0]
     RESULTS.mkdir(exist_ok=True)
-    summaries, last_rows = [], None
+    summaries, rows_by_mode = [], {}
     for mode in args.modes.split(","):
         rows, summary = run_mode(mode, cases, llm, args.sleep)
         summaries.append(summary)
-        last_rows = rows
+        rows_by_mode[mode] = rows
         print(json.dumps(summary, indent=1))
     (RESULTS / f"summary_{llm}.json").write_text(json.dumps(summaries, indent=1) + "\n")
 
-    if not args.no_write and last_rows:  # the evalset file records the last mode run (hybrid, the shipped default)
+    from app.config import Settings
+    shipped = Settings().retrieval_mode  # the evalset file records the mode the app ships with
+    if not args.no_write and shipped in rows_by_mode:
         with open(EVALSET, "w") as f:
-            for r in last_rows:
+            for r in rows_by_mode[shipped]:
                 c, a = r["case"], r["ans"]
                 c["actual"] = {"status": a.status, "reason": a.reason, "answer": a.message,
                                "cited_sections": [x["section"] for x in a.citations],

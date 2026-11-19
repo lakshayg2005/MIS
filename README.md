@@ -51,7 +51,7 @@ curl -s localhost:8000/ask -H "Authorization: Bearer $(python -m scripts.issue_t
                               ▼
                           service.py       (every safety decision is plain code)
    1 retrieve ─► Chroma collection of THAT company, ACTIVE version only (SQLite says which)
-                 hybrid = vector + BM25; top 3; timeout 1 s; fail-closed company check on every chunk
+                 vector search (hybrid = vector + BM25 is optional, see EVALUATION.md); top 3; timeout 1 s; fail-closed company check on every chunk
    2 no/weak evidence? ─► "not covered" immediately, WITHOUT calling the LLM
    3 ONE LLM call: excerpts fenced as DATA, JSON answer + numbers of the excerpts used
    4 validate: JSON shape, cited numbers ⊆ excerpts given, ≤3, ≥1, no other company named in the answer
@@ -100,7 +100,7 @@ curl -s localhost:8000/ask -H "Authorization: Bearer $(python -m scripts.issue_t
 | Citations **built by code** from numbers the model picks | model cannot fabricate a section or a source | we can verify the cited excerpts exist, not that the model picked the *best* one |
 | Top **3** chunks to the LLM | = citation cap; ~40 % fewer tokens; eval shows the right section is always in the top 3 | a rule split across 4+ chunks would be missed |
 | Plain `httpx` to Groq's OpenAI-compatible API | ~30 lines, no SDK; the same code works for Gemini | no built-in retries (deliberate: see budget) |
-| Hand-written BM25 + RRF for hybrid | explainable in a minute, no dependency | untuned; result in EVALUATION.md |
+| Hand-written BM25 + RRF (the bonus), **off by default** | explainable in a minute, no dependency; we measured it | it did not beat plain vector search on this data and cost latency, so we do not ship it as default (EVALUATION.md) |
 | HS256 shared secret | simplest verifiable JWT for a mock issuer | production would use RS256 with the identity provider's public key (one-line change) |
 | PDF in, **no OCR** | wrong text would mean wrong citations, which is worse than a refused upload | scanned PDFs are rejected |
 | Free tier Groq (8k tokens/min) | zero cost per the rules | ≈ 10 questions/minute; see limitations |

@@ -20,7 +20,7 @@ class Settings:
     seed_dir: str = field(default_factory=lambda: os.getenv("SEED_DIR", "./data/policies"))
     # --- retrieval ---
     embedder: str = field(default_factory=lambda: os.getenv("EMBEDDER", "minilm"))  # minilm | hash
-    retrieval_mode: str = field(default_factory=lambda: os.getenv("RETRIEVAL_MODE", "hybrid"))  # vector | hybrid
+    retrieval_mode: str = field(default_factory=lambda: os.getenv("RETRIEVAL_MODE", "vector"))  # vector | hybrid
     top_k: int = 3  # chunks retrieved AND shown to the LLM: also the brief's cap of 3 cited chunks, and fewer tokens per call
     min_similarity: float = field(default_factory=lambda: _f("MIN_SIMILARITY", 0.25))  # below this: "not covered", no LLM call
     # --- llm ---

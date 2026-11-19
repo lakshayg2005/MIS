@@ -9,9 +9,10 @@ QUESTIONS = ["escort after 10 PM", "weekend cab booking", "airport trip approval
              "cost cap per trip", "guest travel", "booking cut-off", "who is eligible"]
 
 
+@pytest.mark.parametrize("mode", ["vector", "hybrid"])
 @pytest.mark.parametrize("company", ["acme", "borealis", "cygnus"])
-def test_retrieval_never_returns_another_companys_chunk(make_client, tok, company):
-    c = make_client()
+def test_retrieval_never_returns_another_companys_chunk(make_client, tok, company, mode):
+    c = make_client(retrieval_mode=mode)
     svc = c.app.state.service
     for q in QUESTIONS:
         res = svc.retriever.search(company, q)
