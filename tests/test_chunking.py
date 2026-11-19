@@ -1,6 +1,10 @@
 import pytest
 
-from app.chunking import PolicyFormatError, parse_policy
+from app.chunking import PolicyFormatError, parse_policy as _parse
+
+
+def parse_policy(text):
+    return _parse([(0, line) for line in text.splitlines()])
 
 
 def doc(body, ver="Version: 1"):

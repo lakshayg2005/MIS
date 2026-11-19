@@ -13,6 +13,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from .chunking import PolicyFormatError, parse_policy
+from .documents import extract_lines
 from .store import PolicyStore, valid_company
 
 log = logging.getLogger("ingest")
@@ -38,13 +39,13 @@ class Ingestor:
         self._store, self._embedder, self._max_bytes = store, embedder, max_bytes
         self._locks = defaultdict(threading.Lock)  # one writer per company at a time
 
-    def ingest(self, company: str, markdown: str) -> IngestResult:
+    def ingest(self, company: str, data: bytes, kind: str = "md") -> IngestResult:
         if not valid_company(company):
             raise IngestError("invalid company id")
-        if len(markdown.encode()) > self._max_bytes:
+        if len(data) > self._max_bytes:
             raise IngestError("document too large", 413)
         try:
-            parsed = parse_policy(markdown)
+            parsed = parse_policy(extract_lines(data, kind))
         except PolicyFormatError as e:
             raise IngestError(f"invalid policy document: {e}") from e
 

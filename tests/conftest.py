@@ -38,7 +38,7 @@ def seeded_dir(tmp_path_factory):
     d = tmp_path_factory.mktemp("seed") / "var"
     store, ing = PolicyStore(str(d)), Ingestor(PolicyStore(str(d)), HashEmbedder(), 10**6)
     for name in ("acme", "borealis", "cygnus"):
-        ing.ingest(name, (POLICIES / f"{name}_v1.md").read_text())
+        ing.ingest(name, (POLICIES / f"{name}_v1.md").read_bytes())
     del store, ing
     return d
 
@@ -74,4 +74,4 @@ def tok(settings):
 
 @pytest.fixture
 def policy_text():
-    return lambda name: (POLICIES / name).read_text()
+    return lambda name: (POLICIES / name).read_bytes()

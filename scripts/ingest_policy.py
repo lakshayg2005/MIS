@@ -10,5 +10,7 @@ if __name__ == "__main__":
     company, path = sys.argv[1], sys.argv[2]
     base = sys.argv[3] if len(sys.argv) > 3 else "http://localhost:8000"
     tok = issue_token(Settings(), f"admin@{company}.example", company, "admin")
-    r = httpx.put(f"{base}/admin/policy", json={"markdown": open(path).read()}, headers={"Authorization": f"Bearer {tok}"}, timeout=60)
+    ctype = "application/pdf" if path.endswith(".pdf") else "text/markdown"
+    r = httpx.put(f"{base}/admin/policy", content=open(path, "rb").read(),
+                  headers={"Authorization": f"Bearer {tok}", "Content-Type": ctype}, timeout=60)
     print(r.status_code, r.text)

@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -24,17 +25,14 @@ class AskBody(BaseModel):
     question: str = Field(min_length=1)
 
 
-class IngestBody(BaseModel):
-    markdown: str
-
-
 def seed_if_empty(settings, store, ingestor):
     """First start only: load each company's lowest-version file so `docker compose up` works with no setup."""
-    for path in sorted(Path(settings.seed_dir).glob("*_v1.md")):
+    for path in sorted(Path(settings.seed_dir).glob("*_v1.*")):
         company = path.name.split("_")[0]
-        if store.active(company) is None:
+        kind = path.suffix.lstrip(".")
+        if kind in ("pdf", "md") and store.active(company) is None and not (kind == "md" and path.with_suffix(".pdf").exists()):
             try:
-                ingestor.ingest(company, path.read_text())
+                ingestor.ingest(company, path.read_bytes(), kind)
                 log.info("seeded %s", company)
             except IngestError as e:
                 log.error("seed failed for %s: %s", company, e)
@@ -79,11 +77,19 @@ def create_app(settings: Settings | None = None, llm=None, embedder=None) -> Fas
         return payload
 
     @app.put("/admin/policy")
-    def put_policy(body: IngestBody, request: Request, who: Principal = Depends(current_principal)):
+    async def put_policy(request: Request, who: Principal = Depends(current_principal)):
+        """Body = the raw policy file. Content-Type: application/pdf or text/markdown."""
         if who.role != "admin":
             raise HTTPException(403, "admin role required")
+        if int(request.headers.get("content-length") or 0) > settings.max_policy_bytes:
+            raise HTTPException(413, "document too large")
+        ctype = request.headers.get("content-type", "").split(";")[0].strip().lower()
+        kind = {"application/pdf": "pdf", "text/markdown": "md", "text/plain": "md"}.get(ctype)
+        if kind is None:
+            raise HTTPException(415, "send Content-Type application/pdf or text/markdown")
+        data = await request.body()
         try:  # an admin can only update THEIR OWN company's policy
-            r = request.app.state.ingestor.ingest(who.company, body.markdown)
+            r = await run_in_threadpool(request.app.state.ingestor.ingest, who.company, data, kind)
         except IngestError as e:
             raise HTTPException(e.http_status, str(e)) from None
         return {"company": r.company, "version": r.version, "chunks": r.chunks,

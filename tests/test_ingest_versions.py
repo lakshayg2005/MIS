@@ -12,7 +12,7 @@ def test_new_version_replaces_old_everywhere(make_client, tok, policy_text):
     before = c.post("/ask", json=Q, headers=tok("acme")).json()
     assert before["citations"][0]["version"] == 1 and "8:00 PM" in before["citations"][0]["excerpt"]
 
-    r = c.put("/admin/policy", json={"markdown": policy_text("acme_v2.md")}, headers=tok("acme", "admin"))
+    r = c.put("/admin/policy", content=policy_text("acme_v2.md"), headers={**tok("acme", "admin"), "Content-Type": "text/markdown"})
     assert r.status_code == 200 and r.json()["version"] == 2 and r.json()["previous_version"] == 1
 
     after = c.post("/ask", json=Q, headers=tok("acme")).json()
@@ -25,13 +25,13 @@ def test_new_version_replaces_old_everywhere(make_client, tok, policy_text):
 
 def test_old_or_same_version_rejected(make_client, tok, policy_text):
     c = make_client()
-    r = c.put("/admin/policy", json={"markdown": policy_text("acme_v1.md")}, headers=tok("acme", "admin"))
+    r = c.put("/admin/policy", content=policy_text("acme_v1.md"), headers={**tok("acme", "admin"), "Content-Type": "text/markdown"})
     assert r.status_code == 409
 
 
 def test_malformed_document_leaves_policy_untouched(make_client, tok):
     c = make_client()
-    r = c.put("/admin/policy", json={"markdown": "# T\nVersion: 5\nno sections"}, headers=tok("acme", "admin"))
+    r = c.put("/admin/policy", content=b"# T\nVersion: 5\nno sections", headers={**tok("acme", "admin"), "Content-Type": "text/markdown"})
     assert r.status_code == 422
     assert c.app.state.service.store.active("acme")[0] == 1
 
@@ -65,5 +65,5 @@ def test_crash_between_stage_and_activate_rolls_back(tmp_path, policy_text, monk
 def test_oversized_document_rejected(tmp_path):
     ing = Ingestor(PolicyStore(str(tmp_path)), HashEmbedder(), 100)
     with pytest.raises(IngestError) as e:
-        ing.ingest("acme", "x" * 101)
+        ing.ingest("acme", b"x" * 101)
     assert e.value.http_status == 413

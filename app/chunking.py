@@ -1,32 +1,32 @@
-"""Split a markdown policy into citeable chunks.
+"""Split a policy into citeable chunks. Works on lines tagged with their page number, so the
+same parser serves Markdown (page 0 = unknown) and text extracted from a PDF.
 
-Format expected (what HR documents are converted to before ingestion):
-    # Title
+Expected structure (numbers are the document's own, and are what we cite):
+    Title                      <- first non-empty line (a leading '# ' is allowed)
     Version: 2
-    ## 3. Night shift and safety
-    ### 3.1 Security escort
-    text...
+    3. Night shift and safety  <- heading   (optional '## ' prefix in Markdown)
+    3.1 Security escort        <- section   (optional '### ' prefix); its number must start with its heading's number
+    rule text...
 
-One chunk = one ### subsection (the unit people cite: "section 3.1"). Rules in a subsection are
-kept together because splitting "escort after 8 PM" from "unless..." would change the meaning.
-Very long subsections are split on paragraph boundaries but keep the same section id.
+One chunk = one section (the unit people cite). Rules inside a section stay together because
+splitting "escort after 8 PM" from its exceptions would change the meaning. Very long sections are
+split on paragraph boundaries but keep the same section id.
 """
 import re
 from dataclasses import dataclass
 
 MAX_CHUNK_CHARS = 1200
 
-_VERSION_RE = re.compile(r"^Version:\s*(\d+)\s*$", re.MULTILINE)
-_H1_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
-_SECTION_RE = re.compile(r"^###\s+(\d+(?:\.\d+)*)\s+(.+?)\s*$")
-_H2_RE = re.compile(r"^##\s+(.+?)\s*$")
+_VERSION_RE = re.compile(r"^Version:\s*(\d+)\s*$", re.IGNORECASE)
+_SECTION_RE = re.compile(r"^(?:#{1,6}\s+)?(\d+\.\d+)\s+(\S.*?)\s*$")
+_HEADING_RE = re.compile(r"^(?:#{1,6}\s+)?(\d+)\.\s+(\S.*?)\s*$")
 
-# Heuristic only, used to *report* suspicious text at ingestion. The real defence is architectural
-# (company comes from the JWT, model output is validated), not this regex.
+# Heuristic used only to REPORT suspicious text at ingestion. The real defences are architectural
+# (company comes from the JWT, answers are validated), not this regex.
 _INJECTION_RE = re.compile(
     r"ignore (all )?(previous|prior|above) instructions|disregard (your|all|the) (rules|instructions)"
     r"|note to (ai|assistants?)|^\s*system\s*:|reveal .{0,40}polic(y|ies)|you are now",
-    re.IGNORECASE,
+    re.IGNORECASE | re.MULTILINE,
 )
 
 
@@ -40,12 +40,13 @@ class Chunk:
     title: str  # "Security escort"
     heading: str  # "3. Night shift and safety"
     text: str
-    part: int = 1  # >1 only when a long subsection was split
+    page: int = 0  # page where the section starts (0 = unknown, e.g. Markdown)
+    part: int = 1  # >1 only when a long section was split
     suspicious: bool = False
 
     @property
     def key(self) -> str:
-        return f"{self.section}" if self.part == 1 else f"{self.section}#{self.part}"
+        return self.section if self.part == 1 else f"{self.section}#{self.part}"
 
 
 @dataclass(frozen=True)
@@ -69,42 +70,44 @@ def _split_long(text: str) -> list:
     return parts
 
 
-def parse_policy(markdown: str) -> ParsedPolicy:
-    if not markdown or not markdown.strip():
+def parse_policy(lines: list) -> ParsedPolicy:
+    """lines: list of (page, text). Raises PolicyFormatError on anything we cannot cite reliably."""
+    lines = [(p, t.rstrip()) for p, t in lines]
+    nonblank = [t.strip() for _, t in lines if t.strip()]
+    if not nonblank:
         raise PolicyFormatError("document is empty")
-    h1 = _H1_RE.search(markdown)
-    ver = _VERSION_RE.search(markdown)
-    if not h1:
-        raise PolicyFormatError("missing '# Title' line")
-    if not ver:
-        raise PolicyFormatError("missing 'Version: N' line")
+    title = nonblank[0].lstrip("# ").strip()
+    version = next((int(m.group(1)) for t in nonblank[:6] if (m := _VERSION_RE.match(t))), None)
+    if version is None:
+        raise PolicyFormatError("missing 'Version: N' line near the top")
 
     chunks, seen = [], set()
-    heading, cur = "", None  # cur = [section, title, heading, [lines]]
+    heading, head_no, cur = "", None, None  # cur = [section, title, heading, page, [body lines]]
 
     def flush():
         if cur is None:
             return
-        body = "\n".join(cur[3]).strip()
+        body = "\n".join(cur[4]).strip()
         if not body:
             raise PolicyFormatError(f"section {cur[0]} has no text")
         for i, part in enumerate(_split_long(body), start=1):
-            chunks.append(Chunk(cur[0], cur[1], cur[2], part, i, bool(_INJECTION_RE.search(part))))
+            chunks.append(Chunk(cur[0], cur[1], cur[2], part, cur[3], i, bool(_INJECTION_RE.search(part))))
 
-    for line in markdown.splitlines():
-        m3, m2 = _SECTION_RE.match(line), _H2_RE.match(line)
-        if m3:
+    for page, line in lines:
+        s = line.strip()
+        m_sec, m_head = _SECTION_RE.match(s), _HEADING_RE.match(s)
+        if m_sec and (head_no is None or m_sec.group(1).split(".")[0] == head_no):
             flush()
-            if m3.group(1) in seen:
-                raise PolicyFormatError(f"duplicate section number {m3.group(1)}")
-            seen.add(m3.group(1))
-            cur = [m3.group(1), m3.group(2), heading, []]
-        elif m2:
+            if m_sec.group(1) in seen:
+                raise PolicyFormatError(f"duplicate section number {m_sec.group(1)}")
+            seen.add(m_sec.group(1))
+            cur = [m_sec.group(1), m_sec.group(2), heading, page, []]
+        elif m_head and not _VERSION_RE.match(s):
             flush()
-            cur, heading = None, m2.group(1)
+            cur, head_no, heading = None, m_head.group(1), f"{m_head.group(1)}. {m_head.group(2)}"
         elif cur is not None:
-            cur[3].append(line)
+            cur[4].append(s)
     flush()
     if not chunks:
-        raise PolicyFormatError("no '### N.N Title' sections found")
-    return ParsedPolicy(h1.group(1), int(ver.group(1)), chunks)
+        raise PolicyFormatError("no numbered sections (like '3.1 Security escort') found")
+    return ParsedPolicy(title, version, chunks)

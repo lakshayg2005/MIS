@@ -71,10 +71,11 @@ def test_auth_rejections(make_client, settings):
 
 def test_admin_rules(make_client, tok, policy_text):
     c = make_client()
-    md = {"markdown": policy_text("acme_v2.md")}
-    assert c.put("/admin/policy", json=md, headers=tok("acme")).status_code == 403  # employee
+    md = policy_text("acme_v2.md")
+    H = {"Content-Type": "text/markdown"}
+    assert c.put("/admin/policy", content=md, headers={**tok("acme"), **H}).status_code == 403  # employee
     # an admin of borealis cannot overwrite acme: ingestion always targets the token's own company
-    r = c.put("/admin/policy", json=md, headers=tok("borealis", "admin"))
+    r = c.put("/admin/policy", content=md, headers={**tok("borealis", "admin"), **H})
     assert r.status_code == 200 and r.json()["company"] == "borealis"
     assert c.app.state.service.store.active("acme")[0] == 1
 

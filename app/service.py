@@ -149,7 +149,7 @@ class QuestionService:
             if status == "not_covered":
                 return Answer("not_covered", NOT_COVERED_MSG, "model_not_covered", llm_calls=calls, retrieved=ids)
             cites = [{"document": res.hits[i - 1]["doc_title"], "version": res.hits[i - 1]["version"],
-                      "section": res.hits[i - 1]["section"], "title": res.hits[i - 1]["title"],
+                      "section": res.hits[i - 1]["section"], "page": res.hits[i - 1].get("page") or None, "title": res.hits[i - 1]["title"],
                       "excerpt": res.hits[i - 1]["text"]} for i in idx]
             return Answer("answered", text, "ok", cites, calls, retrieved=ids)
         return Answer("error", ERROR_MSG, last_reason, llm_calls=calls, retrieved=ids)
