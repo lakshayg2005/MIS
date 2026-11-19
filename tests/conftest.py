@@ -30,8 +30,22 @@ class ScriptedLLM:
 ANSWER_1 = '{"status":"answered","answer":"See the cited section.","citations":[1]}'
 
 
+@pytest.fixture(scope="session")
+def seeded_dir(tmp_path_factory):
+    """Seed the three policies once per test session; each test gets a private copy (fast, isolated)."""
+    from app.ingest import Ingestor
+    from app.store import PolicyStore
+    d = tmp_path_factory.mktemp("seed") / "var"
+    store, ing = PolicyStore(str(d)), Ingestor(PolicyStore(str(d)), HashEmbedder(), 10**6)
+    for name in ("acme", "borealis", "cygnus"):
+        ing.ingest(name, (POLICIES / f"{name}_v1.md").read_text())
+    del store, ing
+    return d
+
+
 @pytest.fixture
-def settings(tmp_path):
+def settings(tmp_path, seeded_dir):
+    shutil.copytree(seeded_dir, tmp_path / "var")
     return Settings(data_dir=str(tmp_path / "var"), seed_dir=str(POLICIES), embedder="hash",
                     min_similarity=0.05, jwt_secret="test-secret-test-secret-test-secret!")
 

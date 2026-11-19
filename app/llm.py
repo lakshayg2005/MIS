@@ -14,7 +14,7 @@ class LLMError(Exception):
 
 
 PROVIDERS = {
-    "groq": ("https://api.groq.com/openai/v1", "llama-3.1-8b-instant"),
+    "groq": ("https://api.groq.com/openai/v1", "openai/gpt-oss-20b"),
     "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-2.0-flash"),
 }
 
@@ -31,7 +31,8 @@ class OpenAICompatLLM:
         try:
             r = self._client.post(
                 "/chat/completions",
-                json={"model": self._model, "temperature": 0, "max_tokens": 350,
+                json={"model": self._model, "temperature": 0, "max_tokens": 800,  # room for hidden reasoning tokens
+                      **({"reasoning_effort": "low"} if "gpt-oss" in self._model else {}),
                       "response_format": {"type": "json_object"},
                       "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]},
                 timeout=max(timeout_s, 0.05),
