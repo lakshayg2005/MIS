@@ -5,8 +5,8 @@
     python -m eval.run --modes hybrid        # one retrieval mode only
 
 Scoring (all defined here, nothing hidden):
-  retrieval  hit@1/3/5, MRR: an answerable case counts if its expected section is among the top 3 / 5
-                             retrieved chunks. Measured directly on the retriever (no LLM involved).
+  retrieval  hit@1, hit@3, MRR: an answerable case counts if its expected section is among the top 3
+                             retrieved chunks (3 = what the LLM sees). Measured directly on the retriever (no LLM involved).
   case pass                : status is one of the expected ones AND (if answered) it cites an expected
                              section AND every must_include fact appears AND no must_not_include text
                              appears AND every citation belongs to the asker's own company.
@@ -78,7 +78,7 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float) -> tuple:
     svc = QuestionService(s, store, retriever, make_llm(llm_name, s.llm_api_key, s.llm_model))
     emb.embed(["warm up"])
 
-    rows, hit1, hit3, hit5, rr, answerable = [], 0, 0, 0, 0.0, 0
+    rows, hit1, hit3, rr, answerable = [], 0, 0, 0.0, 0
     for case in cases:
         co, q = case["input"]["company"], case["input"]["question"]
         if case["input"].get("setup_ingest"):
@@ -95,10 +95,9 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float) -> tuple:
             hit1 += bool(set(got[:1]) & set(exp_secs))
             rr += next((1 / (i + 1) for i, g in enumerate(got) if g in exp_secs), 0.0)
             hit3 += bool(set(got[:3]) & set(exp_secs))
-            hit5 += bool(set(got[:5]) & set(exp_secs))
         ans = svc.ask(co, q)
         if ans.status == "error" and llm_name != "fake":  # harness-only: transient quota/network, retry once
-            time.sleep(6)
+            time.sleep(40)  # token-per-minute window resets in ~40 s
             ans = svc.ask(co, q)
         ok, notes, leak = judge(case, ans, got)
         rows.append({"case": case, "ok": ok, "notes": notes, "leak": leak, "ans": ans, "top3": got[:3]})
@@ -114,7 +113,7 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float) -> tuple:
         "mode": mode, "llm": llm_name, "cases": len(rows),
         "case_pass_pct": pct(sum(r["ok"] for r in rows), len(rows)),
         "retrieval_hit@1_pct": pct(hit1, answerable), "retrieval_mrr": round(rr / answerable, 3),
-        "retrieval_hit@3_pct": pct(hit3, answerable), "retrieval_hit@5_pct": pct(hit5, answerable),
+        "retrieval_hit@3_pct": pct(hit3, answerable),
         "not_covered_recall_pct": pct(len(tp), len(exp_nc)), "not_covered_precision_pct": pct(len(tp), len(got_nc)),
         "cross_company_leaks": sum(r["leak"] for r in rows),
         "errors_503": sum(r["ans"].status == "error" for r in rows),
@@ -129,7 +128,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--modes", default="vector,hybrid")
     ap.add_argument("--llm", default=None, help="groq|gemini|fake (default: LLM_PROVIDER from .env, else fake)")
-    ap.add_argument("--sleep", type=float, default=2.5)
+    ap.add_argument("--sleep", type=float, default=6.0, help="seconds between LLM cases: Groq free tier allows ~8000 tokens/min")
     ap.add_argument("--no-write", action="store_true", help="do not update evalset.jsonl")
     args = ap.parse_args()
 

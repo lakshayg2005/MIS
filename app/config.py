@@ -21,8 +21,7 @@ class Settings:
     # --- retrieval ---
     embedder: str = field(default_factory=lambda: os.getenv("EMBEDDER", "minilm"))  # minilm | hash
     retrieval_mode: str = field(default_factory=lambda: os.getenv("RETRIEVAL_MODE", "hybrid"))  # vector | hybrid
-    top_k: int = 5  # chunks retrieved
-    max_cited: int = 3  # hard cap required by the brief
+    top_k: int = 3  # chunks retrieved AND shown to the LLM: also the brief's cap of 3 cited chunks, and fewer tokens per call
     min_similarity: float = field(default_factory=lambda: _f("MIN_SIMILARITY", 0.25))  # below this: "not covered", no LLM call
     # --- llm ---
     llm_provider: str = field(default_factory=lambda: os.getenv("LLM_PROVIDER", "fake"))  # groq | gemini | fake
