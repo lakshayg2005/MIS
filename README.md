@@ -70,7 +70,7 @@ curl -s localhost:8000/ask -H "Authorization: Bearer $(python -m scripts.issue_t
 ### How we stay inside the two numbers
 * **≤ 2 LLM calls per question.** Normal path = **1** call. The 2nd call exists only to repair a *malformed* reply, and only if ≥ 1 s of the time budget is left. Transport errors (quota, timeout) are **not** retried: the time is already gone. `max_llm_calls = 2` is enforced in a loop, and tested.
 * **≤ 3 cited chunks.** Retrieval returns only the top 3 (`top_k = 3`), the LLM only ever sees those, and citations are capped at 3 in code. Also tested.
-* **p95 < 3 s.** Retrieval ≈ 20 ms warm; one short LLM call ≈ 0.4–0.9 s; hard budget 2.8 s (retrieval timeout 1 s, LLM timeout = remaining budget). Measured numbers: [EVALUATION.md](EVALUATION.md).
+* **p95 < 3 s.** Retrieval ≈ 0.14 s (mostly the CPU embedding of the question); one short LLM call ≈ 0.4–0.9 s; hard budget 2.8 s (retrieval timeout 1 s, LLM timeout = remaining budget). Measured numbers: [EVALUATION.md](EVALUATION.md).
 
 ## Safety model
 
@@ -94,7 +94,7 @@ curl -s localhost:8000/ask -H "Authorization: Bearer $(python -m scripts.issue_t
 | One Chroma collection **per company** | leak impossible by construction; a metadata filter is one forgotten `where` from a leak | more collections; fine up to hundreds of tenants, beyond that use a filter plus the same defensive check |
 | **SQLite pointer** decides the active version; chunks of a new version are staged first | version switch is one transaction; DB itself forbids two active versions | two stores to keep consistent; startup purge handles a crash in between |
 | Chunk **by numbered section** | citations mean "§3.1"; splitting a rule from its exception changes meaning | documents must be structured; unstructured ones are rejected with a clear error instead of guessed at |
-| **Local MiniLM** embeddings | free, offline, no quota, ~20 ms | weaker than hosted embeddings; the bonus (hybrid) tests whether keywords help |
+| **Local MiniLM** embeddings | free, offline, no quota, ~0.13 s per question on CPU | weaker than hosted embeddings; the bonus (hybrid) tests whether keywords help |
 | **One** LLM call, no query rewriting or judge call | latency budget and the 2-call cap | no LLM rewriting or LLM-as-judge; checks are deterministic code instead |
 | Similarity **gate before** the LLM | "not covered" is instant, free and cannot hallucinate | a too-high threshold could hide answerable questions; tuned on the eval set (`MIN_SIMILARITY`) |
 | Citations **built by code** from numbers the model picks | model cannot fabricate a section or a source | we can verify the cited excerpts exist, not that the model picked the *best* one |
