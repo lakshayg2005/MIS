@@ -1,0 +1,37 @@
+"""All tunables in one place. Every value can be overridden by an environment variable."""
+import os
+from dataclasses import dataclass, field
+
+
+def _f(name: str, default: float) -> float:
+    return float(os.getenv(name, default))
+
+
+@dataclass
+class Settings:
+    # --- auth ---
+    jwt_secret: str = field(default_factory=lambda: os.getenv("JWT_SECRET", "dev-only-secret-change-me-32-bytes!!"))
+    jwt_algorithm: str = "HS256"  # pinned: never read the algorithm from the token header
+    jwt_issuer: str = "commute-demo-issuer"
+    jwt_audience: str = "commute-policy-assistant"
+    # --- storage ---
+    data_dir: str = field(default_factory=lambda: os.getenv("DATA_DIR", "./var"))
+    seed_dir: str = field(default_factory=lambda: os.getenv("SEED_DIR", "./data/policies"))
+    # --- retrieval ---
+    embedder: str = field(default_factory=lambda: os.getenv("EMBEDDER", "minilm"))  # minilm | hash
+    retrieval_mode: str = field(default_factory=lambda: os.getenv("RETRIEVAL_MODE", "hybrid"))  # vector | hybrid
+    top_k: int = 5  # chunks retrieved
+    max_cited: int = 3  # hard cap required by the brief
+    min_similarity: float = field(default_factory=lambda: _f("MIN_SIMILARITY", 0.25))  # below this: "not covered", no LLM call
+    # --- llm ---
+    llm_provider: str = field(default_factory=lambda: os.getenv("LLM_PROVIDER", "fake"))  # groq | gemini | fake
+    llm_api_key: str = field(default_factory=lambda: os.getenv("LLM_API_KEY", ""))
+    llm_model: str = field(default_factory=lambda: os.getenv("LLM_MODEL", ""))
+    max_llm_calls: int = 2  # hard cap required by the brief (we normally use 1)
+    # --- budgets (seconds) ---
+    total_budget_s: float = field(default_factory=lambda: _f("TOTAL_BUDGET_S", 2.8))  # p95 target is 3 s
+    retrieval_timeout_s: float = field(default_factory=lambda: _f("RETRIEVAL_TIMEOUT_S", 1.0))
+    retry_min_remaining_s: float = 1.0  # only retry a malformed LLM answer if this much budget is left
+    # --- input limits ---
+    max_question_chars: int = 500
+    max_policy_bytes: int = 200_000
