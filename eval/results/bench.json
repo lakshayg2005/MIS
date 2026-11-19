@@ -1,0 +1,11 @@
+{
+ "requests": 60,
+ "statuses": {
+  "answered": 53,
+  "not_covered": 7
+ },
+ "p50_ms": 633,
+ "p95_ms": 884,
+ "max_ms": 957,
+ "target_p95_ms": 3000
+}
