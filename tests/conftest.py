@@ -1,0 +1,63 @@
+import shutil
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.auth import issue_token
+from app.config import Settings
+from app.embeddings import HashEmbedder
+from app.llm import LLMError
+from app.main import create_app
+
+POLICIES = Path(__file__).resolve().parent.parent / "data" / "policies"
+
+
+class ScriptedLLM:
+    """Fake LLM: returns/raises the scripted items in order (the last one repeats). Records calls."""
+
+    def __init__(self, *script):
+        self.script, self.calls = list(script), 0
+
+    def complete(self, system, user, timeout_s):
+        item = self.script[min(self.calls, len(self.script) - 1)]
+        self.calls += 1
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+
+ANSWER_1 = '{"status":"answered","answer":"See the cited section.","citations":[1]}'
+
+
+@pytest.fixture
+def settings(tmp_path):
+    return Settings(data_dir=str(tmp_path / "var"), seed_dir=str(POLICIES), embedder="hash",
+                    min_similarity=0.05, jwt_secret="test-secret-test-secret-test-secret!")
+
+
+@pytest.fixture
+def make_client(settings):
+    clients = []
+
+    def _make(llm=None, **overrides):
+        for k, v in overrides.items():
+            setattr(settings, k, v)
+        c = TestClient(create_app(settings, llm=llm or ScriptedLLM(ANSWER_1), embedder=HashEmbedder()))
+        c.__enter__()
+        clients.append(c)
+        return c
+
+    yield _make
+    for c in clients:
+        c.__exit__(None, None, None)
+
+
+@pytest.fixture
+def tok(settings):
+    return lambda company, role="employee": {"Authorization": "Bearer " + issue_token(settings, f"u@{company}", company, role)}
+
+
+@pytest.fixture
+def policy_text():
+    return lambda name: (POLICIES / name).read_text()
