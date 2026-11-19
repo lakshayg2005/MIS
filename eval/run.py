@@ -78,7 +78,7 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float) -> tuple:
     svc = QuestionService(s, store, retriever, make_llm(llm_name, s.llm_api_key, s.llm_model))
     emb.embed(["warm up"])
 
-    rows, hit1, hit3, rr, answerable = [], 0, 0, 0.0, 0
+    rows, retr_ms, hit1, hit3, rr, answerable = [], [], 0, 0, 0.0, 0
     for case in cases:
         co, q = case["input"]["company"], case["input"]["question"]
         if case["input"].get("setup_ingest"):
@@ -88,7 +88,9 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float) -> tuple:
             except Exception:
                 pass  # already ingested by an earlier case in this run
         exp_secs = case["expected"]["sections"]
+        t_r = time.perf_counter()
         res = retriever.search(co, q)
+        retr_ms.append((time.perf_counter() - t_r) * 1000)
         got = [h["section"] for h in res.hits]
         if exp_secs:
             answerable += 1
@@ -107,7 +109,8 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float) -> tuple:
 
     lat = sorted(r["ans"].latency_ms for r in rows if r["ans"].status != "error")
     exp_nc = [r for r in rows if r["case"]["expected"]["status"] == "not_covered"]
-    got_nc = [r for r in rows if r["ans"].status == "not_covered"]
+    # precision ignores cases where either status is acceptable (trap cases), so it only counts clear-cut ones
+    got_nc = [r for r in rows if r["ans"].status == "not_covered" and not isinstance(r["case"]["expected"]["status"], list)]
     tp = [r for r in got_nc if r["case"]["expected"]["status"] == "not_covered"]
     summary = {
         "mode": mode, "llm": llm_name, "cases": len(rows),
@@ -119,6 +122,7 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float) -> tuple:
         "errors_503": sum(r["ans"].status == "error" for r in rows),
         "latency_ms_p50": int(statistics.median(lat)) if lat else None,
         "latency_ms_p95": lat[min(len(lat) - 1, int(0.95 * len(lat)))] if lat else None,
+        "retrieval_only_ms_p50": round(statistics.median(retr_ms), 1), "retrieval_only_ms_p95": round(sorted(retr_ms)[int(0.95 * len(retr_ms))], 1),
         "max_llm_calls": max(r["ans"].llm_calls for r in rows), "max_citations": max(len(r["ans"].citations) for r in rows),
     }
     return rows, summary

@@ -11,8 +11,8 @@
   "not_covered_precision_pct": 85.7,
   "cross_company_leaks": 0,
   "errors_503": 0,
-  "latency_ms_p50": 538,
-  "latency_ms_p95": 897,
+  "latency_ms_p50": 664,
+  "latency_ms_p95": 1302,
   "max_llm_calls": 1,
   "max_citations": 2
  },
@@ -28,8 +28,8 @@
   "not_covered_precision_pct": 66.7,
   "cross_company_leaks": 0,
   "errors_503": 0,
-  "latency_ms_p50": 692,
-  "latency_ms_p95": 1117,
+  "latency_ms_p50": 545,
+  "latency_ms_p95": 934,
   "max_llm_calls": 1,
   "max_citations": 3
  }
