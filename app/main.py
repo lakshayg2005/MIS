@@ -40,6 +40,8 @@ def seed_if_empty(settings, store, ingestor):
 
 def create_app(settings: Settings | None = None, llm=None, embedder=None) -> FastAPI:
     settings = settings or Settings()
+    if settings.jwt_secret.startswith("dev-only-secret"):
+        log.warning("JWT_SECRET is the built-in dev default: set JWT_SECRET before any real use")
 
     @asynccontextmanager
     async def lifespan(app):
