@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commute Policy Assistant</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1b2330; --muted:#5d6878; --line:#dde2ea; --brand:#1f5fd6;
+          --ok:#0f7b45; --okbg:#e8f6ee; --warn:#8a5a00; --warnbg:#fff4dc; --err:#a12626; --errbg:#fdeaea; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#12161c; --card:#1b212b; --ink:#e9edf3; --muted:#9aa6b8; --line:#2c3441;
+          --brand:#6ea1ff; --ok:#5fd394; --okbg:#14291f; --warn:#f0bf62; --warnbg:#2d2410; --err:#ff8c8c; --errbg:#321616; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:1.35rem; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 20px; font-size:.95rem; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+  label { font-weight:600; font-size:.9rem; display:block; margin-bottom:6px; }
+  select, textarea, button { font:inherit; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); }
+  select { padding:8px 10px; width:100%; }
+  textarea { width:100%; padding:10px; resize:vertical; min-height:72px; }
+  button.primary { background:var(--brand); color:#fff; border:0; padding:10px 18px; font-weight:600; cursor:pointer; }
+  button.primary:disabled { opacity:.6; cursor:wait; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 14px; }
+  .chip { padding:5px 10px; font-size:.85rem; cursor:pointer; background:transparent; }
+  .badge { display:inline-block; font-size:.8rem; padding:2px 8px; border-radius:99px; background:var(--okbg); color:var(--ok); }
+  .row { display:flex; gap:12px; align-items:end; flex-wrap:wrap; }
+  .row > div { flex:1; min-width:220px; }
+  .answer { border-left:5px solid var(--ok); } .answer.nc { border-left-color:var(--warn); } .answer.err { border-left-color:var(--err); }
+  .tag { font-weight:700; font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; }
+  .answer .tag { color:var(--ok); } .answer.nc .tag { color:var(--warn); } .answer.err .tag { color:var(--err); }
+  .cit { border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-top:10px; }
+  .cit b { display:block; } .cit small { color:var(--muted); }
+  details summary { cursor:pointer; color:var(--brand); font-size:.9rem; margin-top:6px; }
+  details p { white-space:pre-wrap; margin:6px 0 0; font-size:.92rem; }
+  .meta { color:var(--muted); font-size:.8rem; margin-top:12px; }
+  footer { color:var(--muted); font-size:.8rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Commute Policy Assistant</h1>
+  <p class="sub">Ask about your company's transport policy. Every answer shows the policy section it came from.</p>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="company">Demo sign-in (stands in for your company login)</label>
+        <select id="company">
+          <option value="acme">Acme Technologies employee</option>
+          <option value="borealis">Borealis Systems employee</option>
+          <option value="cygnus">Cygnus Labs employee</option>
+        </select>
+      </div>
+      <div id="who" class="meta"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <label for="q">Your question</label>
+    <textarea id="q" maxlength="500" placeholder="e.g. Am I eligible for a 9:30 PM drop?"></textarea>
+    <div class="chips" id="chips"></div>
+    <button class="primary" id="ask">Ask</button>
+  </div>
+
+  <div id="out" aria-live="polite"></div>
+  <footer>Demo page: the sign-in above is only available when the server runs with DEMO_MODE=1. The API itself requires a signed JWT.</footer>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const EXAMPLES = ["After what time is a security escort mandatory for women on drops?", "Can I book a cab on Saturday?",
+  "Who approves an airport trip?", "What happens if I no-show twice?", "Are pets allowed in the cab?"];
+let token = null;
+
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+
+async function signIn() {
+  token = null; $("who").textContent = "Signing in...";
+  try {
+    const r = await fetch("/demo/token", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({company: $("company").value})});
+    if (!r.ok) throw new Error();
+    token = (await r.json()).token;
+    const me = await (await fetch("/me", {headers:{Authorization:"Bearer " + token}})).json();
+    $("who").textContent = me.policy ? "Answering from: " + me.policy.title + " (version " + me.policy.version + ")" : "No policy loaded for this company";
+  } catch { $("who").textContent = "Could not sign in. Is the server running with DEMO_MODE=1?"; }
+}
+
+function show(kind, title, text, data) {
+  const out = $("out"); out.replaceChildren();
+  const card = el("div", "card answer" + (kind === "nc" ? " nc" : kind === "err" ? " err" : ""));
+  card.append(el("div", "tag", title), el("p", "", text));
+  (data && data.citations || []).forEach((c) => {
+    const box = el("div", "cit");
+    box.append(el("b", "", c.document), el("small", "", "Version " + c.version + " · Section " + c.section + " – " + c.title + (c.page ? " · page " + c.page : "")));
+    const d = el("details"); d.append(el("summary", "", "Show the policy text"), el("p", "", c.excerpt)); box.append(d);
+    card.append(box);
+  });
+  if (data && data.latency_ms !== undefined) card.append(el("div", "meta", "Answered in " + (data.latency_ms / 1000).toFixed(1) + " s"));
+  out.append(card);
+}
+
+async function ask() {
+  const q = $("q").value.trim();
+  if (!q) { show("err", "Type a question", "Please type your question first."); return; }
+  if (!token) await signIn();
+  $("ask").disabled = true; $("ask").textContent = "Checking the policy...";
+  try {
+    const r = await fetch("/ask", {method:"POST", headers:{"Content-Type":"application/json", Authorization:"Bearer " + token}, body: JSON.stringify({question: q})});
+    if (r.status === 401) { token = null; show("err", "Session expired", "Please press Ask again."); return; }
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 400) show("err", "Check your question", "Questions must be 1 to 500 characters.");
+    else if (r.status === 503 || !r.ok) show("err", "Please try again", data.answer || "Something went wrong. Please try again in a moment.", data);
+    else if (data.status === "not_covered") show("nc", "Policy does not say", data.answer, data);
+    else show("ok", "Answer from your policy", data.answer, data);
+  } catch { show("err", "Please try again", "Could not reach the assistant. Check your connection and try again."); }
+  finally { $("ask").disabled = false; $("ask").textContent = "Ask"; }
+}
+
+EXAMPLES.forEach((t) => { const b = el("button", "chip", t); b.type = "button"; b.onclick = () => { $("q").value = t; $("q").focus(); }; $("chips").append(b); });
+$("ask").onclick = ask;
+$("q").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) ask(); });
+$("company").onchange = () => { $("out").replaceChildren(); signIn(); };
+signIn();
+</script>
+</body>
+</html>

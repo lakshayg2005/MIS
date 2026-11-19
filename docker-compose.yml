@@ -1,0 +1,15 @@
+services:
+  api:
+    build: .
+    ports: ["8000:8000"]
+    env_file:
+      - path: .env        # optional: LLM_PROVIDER=groq and LLM_API_KEY=... (never committed)
+        required: false
+    environment:
+      DEMO_MODE: "1"      # enables the demo web page + /demo/token. Turn off outside demos.
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me-32-bytes!!}
+      DATA_DIR: /data
+    volumes:
+      - policy-data:/data
+volumes:
+  policy-data:

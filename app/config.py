@@ -14,6 +14,7 @@ class Settings:
     jwt_algorithm: str = "HS256"  # pinned: never read the algorithm from the token header
     jwt_issuer: str = "commute-demo-issuer"
     jwt_audience: str = "commute-policy-assistant"
+    demo_mode: bool = field(default_factory=lambda: os.getenv("DEMO_MODE", "0") == "1")  # exposes /demo/token for the web page. NEVER on in production
     # --- storage ---
     data_dir: str = field(default_factory=lambda: os.getenv("DATA_DIR", "./var"))
     seed_dir: str = field(default_factory=lambda: os.getenv("SEED_DIR", "./data/policies"))

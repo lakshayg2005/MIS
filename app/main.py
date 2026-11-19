@@ -4,10 +4,10 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
-from .auth import Principal, current_principal
+from .auth import Principal, current_principal, issue_token
 from .config import Settings
 from .embeddings import make_embedder
 from .ingest import Ingestor, IngestError
@@ -62,6 +62,29 @@ def create_app(settings: Settings | None = None, llm=None, embedder=None) -> Fas
     @app.get("/health")
     def health():
         return {"ok": True}
+
+    @app.get("/me")
+    def me(request: Request, who: Principal = Depends(current_principal)):
+        """Which company and which policy version this token answers from (shown in the UI)."""
+        act = request.app.state.service.store.active(who.company)
+        return {"company": who.company, "role": who.role,
+                "policy": {"title": act[1], "version": act[0]} if act else None}
+
+    if settings.demo_mode:
+        class DemoTokenBody(BaseModel):
+            company: str
+
+        @app.post("/demo/token")
+        def demo_token(body: DemoTokenBody, request: Request):
+            """DEMO ONLY (DEMO_MODE=1): stands in for the company's login so the web page works.
+            Hands out EMPLOYEE tokens for known companies only; never an admin token."""
+            if body.company not in request.app.state.service.store.companies():
+                raise HTTPException(404, "unknown company")
+            return {"token": issue_token(settings, f"demo-employee@{body.company}", body.company, "employee", ttl_s=1800)}
+
+        @app.get("/", include_in_schema=False)
+        def index():
+            return FileResponse(Path(__file__).resolve().parent.parent / "web" / "index.html")
 
     @app.post("/ask")
     def ask(body: AskBody, request: Request, who: Principal = Depends(current_principal)):
