@@ -5,6 +5,8 @@ hybrid : vector + BM25 keyword ranking fused with Reciprocal Rank Fusion (the bo
 """
 import math
 import re
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass
 
 STOP = set("a an the is are am be to of for on in at by do does can i my me we you it this that and or if with from what when who how will get".split())
@@ -54,8 +56,13 @@ class IsolationError(Exception):
 
 
 class Retriever:
-    def __init__(self, store, embedder, mode: str, top_k: int):
+    def __init__(self, store, embedder, mode: str, top_k: int, cache_size: int = 512):
         self._store, self._embedder, self._mode, self._k = store, embedder, mode, top_k
+        # Embedding the question is ~99 % of retrieval time (measured: 134 ms vs 1 ms for the HNSW search), and
+        # employees repeat the same questions daily, so remember recent question vectors. The vector depends only
+        # on the text, never on the company, so sharing it between companies leaks nothing.
+        self._qcache, self._cache_size, self._lock = OrderedDict(), cache_size, threading.Lock()
+        self.cache_hits = self.cache_misses = 0
         self._bm25_cache = {}  # (company, version) -> (chunks, BM25); key includes version so updates never reuse stale data
 
     def _bm25(self, company, version):
@@ -67,12 +74,27 @@ class Retriever:
             self._bm25_cache[key] = (chunks, BM25([f"{c['heading']} {c['title']} {c['text']}" for c in chunks]))
         return self._bm25_cache[key]
 
+    def _embed_query(self, question: str) -> list:
+        key = " ".join(question.lower().split())
+        with self._lock:
+            if key in self._qcache:
+                self._qcache.move_to_end(key)
+                self.cache_hits += 1
+                return self._qcache[key]
+        vec = self._embedder.embed([question])[0]  # outside the lock: slow
+        with self._lock:
+            self.cache_misses += 1
+            self._qcache[key] = vec
+            while len(self._qcache) > self._cache_size:
+                self._qcache.popitem(last=False)
+        return vec
+
     def search(self, company: str, question: str) -> Retrieved:
         active = self._store.active(company)
         if active is None:
             return Retrieved(None, [], 0.0)
         version = active[0]
-        qvec = self._embedder.embed([question])[0]
+        qvec = self._embed_query(question)
         vec_hits = self._store.query(company, version, qvec, 10)
         best = max((h["sim"] for h in vec_hits), default=0.0)
 
