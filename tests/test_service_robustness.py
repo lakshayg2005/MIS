@@ -1,3 +1,4 @@
+import json
 import time
 
 import httpx
@@ -95,7 +96,7 @@ def test_prompt_injection_in_user_question_cannot_cross_tenants(make_client, tok
     seen = {}
 
     class Spy(ScriptedLLM):
-        def complete(self, system, user, t):
+        def complete(self, system, user, t, **kw):
             seen["prompt"] = user
             return super().complete(system, user, t)
 
@@ -110,7 +111,7 @@ def test_injected_document_text_is_data_not_instructions(make_client, tok, setti
     seen = {}
 
     class Spy(ScriptedLLM):
-        def complete(self, system, user, t):
+        def complete(self, system, user, t, **kw):
             seen["user"], seen["system"] = user, system
             return super().complete(system, user, t)
 
@@ -156,3 +157,17 @@ def test_rewrite_call_counts_toward_the_cap_but_never_blocks_the_first_answer(ma
     svc.retriever.search = lambda co, q: (lambda r: Retrieved(r.version, r.hits, r.best_sim, llm_calls=1))(real(co, q))
     r = c.post("/ask", json={"question": "At what time is a security escort mandatory for women on drops?"}, headers=tok("acme"))
     assert llm.calls == 1 and r.json()["llm_calls"] == 2  # one answer attempt; total = rewrite + answer = 2, no third call
+
+
+def test_json_mode_can_be_switched_off_for_free_text_calls():
+    """Groq rejects response_format=json_object unless the prompt says 'json' (our rewrite prompts do not): free-text calls must omit it."""
+    sent = []
+
+    def handler(request):
+        sent.append(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    llm = OpenAICompatLLM("groq", "k", transport=httpx.MockTransport(handler))
+    llm.complete("s", "u", 1)
+    llm.complete("s", "u", 1, json_mode=False)
+    assert "response_format" in sent[0] and "response_format" not in sent[1]

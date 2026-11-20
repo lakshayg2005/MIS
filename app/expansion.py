@@ -23,7 +23,7 @@ class Doc2Query:
         key = hashlib.sha256(f"{title}\n{text}".encode()).hexdigest()
         if key not in self._cache:
             try:
-                raw = self._llm.complete(SYSTEM, f"Section: {title}\n{text}", 20)
+                raw = self._llm.complete(SYSTEM, f"Section: {title}\n{text}", 20, json_mode=False)
                 qs = [str(q) for q in json.loads(re.search(r"\[.*\]", raw, re.S).group(0))][:6]
             except (LLMError, ValueError, AttributeError, json.JSONDecodeError):
                 return []  # no expansion for this chunk (not cached, so it is retried next time)

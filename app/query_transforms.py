@@ -15,7 +15,7 @@ HYDE_SYSTEM = ("Write ONE sentence, in the style of a corporate transport policy
 def _llm_transform(llm, system: str, timeout_s: float):
     def run(question: str):
         try:
-            out = llm.complete(system, question, timeout_s).strip()
+            out = llm.complete(system, question, timeout_s, json_mode=False).strip()
             out = re.sub(r"^```.*?\n|```$", "", out, flags=re.S).strip().strip('"')
             return (out if 3 <= len(out) <= 400 else question), 1
         except LLMError:

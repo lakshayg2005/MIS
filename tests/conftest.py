@@ -21,7 +21,7 @@ class ScriptedLLM:
     def __init__(self, *script):
         self.script, self.calls = list(script), 0
 
-    def complete(self, system, user, timeout_s):
+    def complete(self, system, user, timeout_s, **kw):
         item = self.script[min(self.calls, len(self.script) - 1)]
         self.calls += 1
         if isinstance(item, Exception):

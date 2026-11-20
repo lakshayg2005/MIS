@@ -27,13 +27,14 @@ class OpenAICompatLLM:
         self._model = model or default_model
         self._client = httpx.Client(base_url=base, headers={"Authorization": f"Bearer {api_key}"}, transport=transport)
 
-    def complete(self, system: str, user: str, timeout_s: float) -> str:
+    def complete(self, system: str, user: str, timeout_s: float, json_mode: bool = True) -> str:
+        """json_mode=True is for the answer step (strict JSON). Query rewriting / expansion pass False (free text)."""
         try:
             r = self._client.post(
                 "/chat/completions",
                 json={"model": self._model, "temperature": 0, "max_tokens": 800,  # room for hidden reasoning tokens
                       **({"reasoning_effort": "low"} if "gpt-oss" in self._model else {}),
-                      "response_format": {"type": "json_object"},
+                      **({"response_format": {"type": "json_object"}} if json_mode else {}),
                       "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]},
                 timeout=max(timeout_s, 0.05),
             )
@@ -50,7 +51,7 @@ class ExtractiveLLM:
     """Offline fake: answers with the first excerpt if it shares enough words with the question.
     Deterministic, free, never hits a quota. It parses the same prompt the real model receives."""
 
-    def complete(self, system: str, user: str, timeout_s: float) -> str:
+    def complete(self, system: str, user: str, timeout_s: float, json_mode: bool = True) -> str:
         import json
 
         from .retrieval import tokenize

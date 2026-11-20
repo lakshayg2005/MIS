@@ -63,7 +63,7 @@ class Said:
     def __init__(self, *outs):
         self.outs, self.calls = list(outs), 0
 
-    def complete(self, system, user, timeout_s):
+    def complete(self, system, user, timeout_s, **kw):
         o = self.outs[min(self.calls, len(self.outs) - 1)]
         self.calls += 1
         if isinstance(o, Exception):

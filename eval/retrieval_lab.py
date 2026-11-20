@@ -47,6 +47,25 @@ TECHNIQUES = {
 }
 
 
+class CheckedLLM:
+    """Wraps the LLM for the lab: retries transient network errors and COUNTS failures, so a technique whose LLM calls
+    silently failed (and fell back to the plain query) is reported as INVALID instead of looking like a real result."""
+
+    def __init__(self, llm):
+        self._llm, self.calls, self.errors = llm, 0, 0
+
+    def complete(self, system, user, timeout_s, **kw):
+        from app.llm import LLMError
+        self.calls += 1
+        for attempt in range(3):
+            try:
+                return self._llm.complete(system, user, max(timeout_s, 6.0), **kw)
+            except LLMError:
+                time.sleep(2 * (attempt + 1))
+        self.errors += 1
+        raise LLMError("lab: gave up after 3 attempts")
+
+
 def relevant(retrieved: str, rel: list) -> bool:
     """A retrieved section counts if it is a labelled one, or (heading-level chunks) the heading that contains it."""
     return retrieved in rel or any(r.startswith(retrieved + ".") for r in rel)
@@ -110,7 +129,9 @@ def evaluate(name: str, opts: dict, rows: list, llm, sleep_s: float) -> dict:
         return {k: round(statistics.mean(p[k] for p in sub), 3) for k in ("recall@1", "recall@3", "mrr", "ndcg@3")} if sub else {}
     dev, test = [p for p in per if p["split"] == "dev"], [p for p in per if p["split"] == "test"]
     ms = sorted(p["ms"] for p in per)
-    return {"technique": name, "dev": agg(dev), "test": agg(test), "all": agg(per),
+    llm_calls = getattr(llm, "calls", 0)
+    llm_errors = getattr(llm, "errors", 0)
+    return {"technique": name, "valid": llm_errors <= 0.05 * max(llm_calls, 1), "llm_calls_made": llm_calls, "llm_errors": llm_errors, "dev": agg(dev), "test": agg(test), "all": agg(per),
             "latency_ms_p50": round(statistics.median(ms), 1), "latency_ms_p95": round(ms[int(0.95 * len(ms))], 1),
             "extra_llm_calls_per_query": round(calls / len(rows), 2), "ingest_s": round(ingest_s, 1),
             "by_kind_recall@3": {k: round(statistics.mean(p["recall@3"] for p in per if p["kind"] == k), 2) for k in sorted({p["kind"] for p in per})}}
@@ -138,11 +159,13 @@ def main():
     out = []
     (ROOT / "eval" / "cache").mkdir(exist_ok=True)
     for n in names:
-        res = evaluate(n, TECHNIQUES[n], rows, llm, a.sleep)
+        checked = CheckedLLM(llm) if llm else None
+        res = evaluate(n, TECHNIQUES[n], rows, checked, a.sleep)
         out.append(res)
         print(f"{n:<20} dev R@3={res['dev']['recall@3']:.2f} MRR={res['dev']['mrr']:.2f} | TEST R@1={res['test']['recall@1']:.2f} "
               f"R@3={res['test']['recall@3']:.2f} MRR={res['test']['mrr']:.2f} nDCG={res['test']['ndcg@3']:.2f} | "
-              f"{res['latency_ms_p50']:>6.1f}ms p50 {res['extra_llm_calls_per_query']} extra calls", flush=True)
+              f"{res['latency_ms_p50']:>6.1f}ms p50 {res['extra_llm_calls_per_query']} extra calls"
+              + ("" if res["valid"] else f"  *** INVALID: {res['llm_errors']}/{res['llm_calls_made']} LLM calls failed ***"), flush=True)
     path = ROOT / "eval" / "results" / (a.out or ("retrieval_lab_llm.json" if a.llm else "retrieval_lab.json"))
     path.write_text(json.dumps(out, indent=1) + "\n")
 
