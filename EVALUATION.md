@@ -169,3 +169,27 @@ It becomes worth revisiting at tens of thousands of chunks per company.
 **Metadata filtering:** every search is already restricted by company (collection) and by `version = active` (metadata filter). I did **not** add a
 topic filter (e.g. "only escort sections for escort questions"): a wrong guess about the topic would hide the right chunk, and recall@3 is already 1.0, so
 the risk is not worth it on this data.
+
+---
+
+# Update 2 (branch `ui-v3`): is our measurement trustworthy? hardening results
+
+## 12. Are we measuring correctness the best way? An honest answer
+**Retrieval:** yes for what it measures. Each answerable question is labelled with the section(s) that hold the answer, and we compute recall@k, precision@k, hit@k, MRR, nDCG on those labels. Standard, deterministic, cheap.
+**Answers:** four complementary checks, each with a known weakness:
+
+| Check | Catches | Misses |
+|---|---|---|
+| Required facts (`must_include`) and forbidden text | wrong or missing numbers, leaks | a correct answer phrased unexpectedly fails; a wrong one that contains the keywords passes |
+| Cited section is the expected one | wrong or missing sources | the right section cited for a wrong statement |
+| Numeric grounding and support ratio (deterministic) | invented numbers, off-topic wording | a wrong claim that uses no new number |
+| LLM judge (different, larger model) | unsupported claims in plain words | shared blind spots; cost |
+
+**Validity check of the judge** (`python -m eval.judge_check`): given 3 truthful and 5 deliberately wrong answers (wrong number, contradiction, invented extra penalty, over-generalisation, invented benefit), it was right **8 of 8**. Small sample, but it proves the judge can say "unfaithful", so its 35/35 "faithful" on our real answers means something.
+**What would be better:** a larger set (hundreds of questions, ideally real employee questions), human-written gold answers, a judge calibrated against human labels, and a judge from a different model family. Our set is 42 author-written cases, so treat the scores as regression protection and evidence of direction, not as production accuracy.
+
+## 13. Results after hardening (quarantine + min-support guardrail + rate limit), real Groq, vector retrieval
+Pass 42/42, recall@3 1.0, MRR 0.984, numeric hallucination 0 %, judge faithful 35/35 and relevant 35/35, not-covered recall and precision 100 %, leaks 0, p50/p95 681/955 ms.
+**The new guardrails rejected 0 correct answers** (no false positives on 35 answers; lowest support ratio was 0.545 against a 0.35 threshold).
+**Red team with quarantine switched OFF** (`QUARANTINE_FLAGGED=0 python -m eval.run --only inj,trap`): the injected Borealis and Cygnus sections reached the model and it still ignored them; all 6 inj/trap cases passed. So the model-level defence works today, and quarantine removes the exposure at the source.
+Raw: `results/summary_groq_hardened.json`.

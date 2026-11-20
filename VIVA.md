@@ -50,6 +50,12 @@ bigger eval set with real employee questions; a cross-encoder reranker if docume
 
 **What are the failures?** Say them first: model may mis-phrase within valid citations; free-tier token limit; structured-PDF requirement; known failing eval cases (see EVALUATION.md).
 
+**Why no token streaming?** Guardrails need the whole answer (valid JSON, numbers, citations). Streaming raw tokens would show text we might then retract. I stream *progress* (real stages) and reveal the validated answer word by word. Cost: less "instant" feel; total is ~0.7 s anyway.
+
+**Why not store conversations?** Privacy and isolation (nothing to leak, no retention duty) and it keeps each question independent so the 2-call / 3-chunk limits hold. Cost: no follow-up questions. Chat is kept only in the browser tab. Future: opt-in server history with per-user encryption and a retention limit.
+
+**Are the guardrails strong enough?** Say: isolation is architectural (strong); hallucination/injection are reduced and measured, not eliminated; the real gap is a malicious admin. See GUARDRAILS.md table.
+
 ## Live-change cookbook (practise each once, then run `pytest -q`)
 | They ask | Change | Check |
 |---|---|---|

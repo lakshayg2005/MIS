@@ -33,6 +33,7 @@ Running without Docker: `pip install -r requirements.txt`, then
 |---|---|---|
 | `POST /ask` `{"question": "..."}` | any employee JWT | grounded answer. **No company field exists**; the company is read from the token |
 | `PUT /admin/policy` raw body, `Content-Type: application/pdf` or `text/markdown` | JWT with `role=admin` | ingest a new version of **the token's own company** |
+| `POST /ask/stream` | any employee JWT | same answer, delivered as Server-Sent Events: `stage` events (retrieving, drafting with the sections found), then ONE `final` event. Raw model tokens are **not** streamed (see trade-offs) |
 | `GET /me` | any JWT | which company/policy version this token answers from |
 | `GET /health` | none | liveness |
 | `POST /demo/token`, `GET /` | none, only if `DEMO_MODE=1` | demo web page and a stand-in login. **Off by default** |
@@ -98,6 +99,8 @@ Clustering or index tuning could save about 1 ms, so it was **not built** (about
 | Model invents a section / cites nothing / returns garbage | citations come from our metadata; invalid JSON, out-of-range numbers, missing citations → one repair try → "try again" (parametrised tests) |
 | Half-updated policy | atomic version flip, rollback of staged chunks, startup cleanup (tests simulate embedder crash and DB crash) |
 | Big or hostile uploads | size limit, page limit, PDF validation, no OCR, section structure validated; failures return 4xx and change nothing |
+| Spam / quota burn | per-user rate limit (20/min), 429 with a clear message |
+| Injection text inside a policy | sections flagged at ingestion are **quarantined** (stored, never retrieved) |
 | Secrets | key only in `.env` (git-ignored); app warns if the dev JWT secret is in use; logs hold company, status and chunk ids, **not** question text |
 
 ## Design decisions and trade-offs (what we chose, and what we gave up)
@@ -116,6 +119,8 @@ Clustering or index tuning could save about 1 ms, so it was **not built** (about
 | Hand-written BM25 + RRF (the bonus), **off by default** | explainable in a minute, no dependency; we measured it | it did not beat plain vector search on this data and cost latency, so we do not ship it as default (EVALUATION.md) |
 | HS256 shared secret | simplest verifiable JWT for a mock issuer | production would use RS256 with the identity provider's public key (one-line change) |
 | PDF in, **no OCR** | wrong text would mean wrong citations, which is worse than a refused upload | scanned PDFs are rejected |
+| **Progress + typed reveal, not raw token streaming** | The answer is only shown after the guardrails (JSON, citations, numbers, support) have checked it; streaming raw tokens would show text we might then have to retract. The UI shows real pipeline stages (which sections were found) and reveals the validated answer word by word | perceived speed is lower than true token streaming; total time is already about 0.7 s |
+| **No server-side conversation storage** | Privacy (questions can be sensitive), nothing to leak across tenants, no retention/GDPR duty, and every question stays independent so the 2-call / 3-chunk limits hold. The chat lives only in the browser tab (sessionStorage) and is cleared on company switch | no follow-up questions ("and on Sunday?"): each question must stand alone. Follow-ups would need history in the prompt (more tokens, more injection surface, per-user storage). Listed as future work |
 | Free tier Groq (8k tokens/min) | zero cost per the rules | ≈ 10 questions/minute; see limitations |
 
 ## Limitations and known failures
@@ -131,6 +136,6 @@ Clustering or index tuning could save about 1 ms, so it was **not built** (about
 app/      main.py (API)  auth.py  service.py (pipeline)  retrieval.py  store.py  ingest.py
           chunking.py  documents.py (PDF/MD)  embeddings.py  llm.py  guardrails.py  config.py
 data/policies/   3 companies + Acme v2, as .md source and .pdf (made by scripts/make_pdfs.py)
-tests/    80+ tests, fake LLM, no network      eval/   evalset.jsonl, run.py, bench.py, results/
+tests/    97 tests, fake LLM, no network      eval/   evalset.jsonl, run.py, bench.py, results/
 web/      demo page    scripts/   token issuer, policy uploader, folder sync, PDF generator
 ```

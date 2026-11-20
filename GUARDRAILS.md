@@ -27,10 +27,26 @@ from the **same company** and the **same embedding model** (`test_other_company_
 | Model answers from memory when the policy is silent | **Evidence gate**: below the similarity threshold the LLM is **not called**; reply is the fixed "policy does not say, contact the transport desk" | `service._ask` | `test_no_evidence_skips_llm_entirely` |
 | Model invents a number, time or amount | **Numeric grounding**: every number in the answer must appear in the cited excerpt or the question (`8 PM` = `8:00 PM`, `1,500` = `1500`). Otherwise the answer is rejected, one repair attempt, then "try again" | `app/guardrails.py` | `test_runtime_rejects_invented_number`, `test_ungrounded_numbers` |
 | Model invents or mis-numbers a citation | The model returns only the **numbers of the excerpts** it used; we validate them (integers, within range, at least one, at most 3) and build document/version/section/page ourselves | `parse_model_output` | parametrised garbage test (12 kinds) |
-| Instructions hidden in a policy document | Excerpts are fenced as **data** and the system prompt says so; the fence cannot be closed by the document; instruction-like sections are flagged at ingestion | `build_prompt`, `chunking._INJECTION_RE` | `test_injected_document_text_is_data_not_instructions`, `test_document_cannot_close_the_data_fence`, eval cases `inj-*` |
+| Instructions hidden in a policy document | **(1) Quarantine:** sections that look like instructions to an AI are flagged at ingestion, stored, but **never retrieved** (the admin is told which sections). **(2)** If anything slips past, excerpts are fenced as **data**, the fence cannot be closed by the document, and the model has no tools | `build_prompt`, `chunking._INJECTION_RE` | `test_injected_document_text_is_data_not_instructions`, `test_document_cannot_close_the_data_fence`, eval cases `inj-*` |
 | Malformed / empty / non-JSON output | Strict parse, one repair try, never more than 2 calls; otherwise a clear "try again" | `service` loop | `test_one_retry_recovers...`, `test_never_more_than_two_llm_calls...` |
+| Model writes free-form or off-topic text | **Minimum support**: at least 35 % of the answer's content words must come from the cited text, else rejected (lowest real answer measured: 54.5 %) | `app/guardrails.py` | `test_off_topic_free_text_is_rejected` |
+| One user floods the assistant (burns the shared LLM quota) | **Per-user rate limit** (20 questions/min, HTTP 429 with a friendly message). Cheap validation runs before it | `main.RateLimiter` | `test_rate_limit_per_user` |
 | Over-long or hostile input | Question ≤ 500 characters; uploads size-, page- and structure-checked | `main.py`, `documents.py` | `test_bad_questions_rejected`, `test_bad_uploads_rejected...` |
 | Stale answers after a policy update | Atomic version pointer, old chunks purged | `ingest.py` | `test_new_version_replaces_old_everywhere` |
+
+## Is it strong enough against malicious prompts and malicious documents? An honest assessment
+
+| Attack | Verdict | Why |
+|---|---|---|
+| User asks for another company's data (any wording, any language) | **Strong** | architectural: the model never receives another company's text, and the company comes from the signed token. Wording cannot matter |
+| Forged / replayed / tampered token | **Strong** | verified signature, pinned algorithm, expiry, audience; short test list above |
+| User tries to make the model say something false about the user's OWN company's policy | **Moderate** | numeric grounding, minimum support and citation checks help, but a wrong claim that uses no new number and reuses cited words can pass. Mitigated by showing the exact policy text next to every answer |
+| Malicious text inside a policy document | **Moderate to strong** | quarantine removes obvious injections before the model sees them; the regex is evadable (paraphrase, other languages), so the second layer (data fence, no tools, output validation) is what matters. Red-team run with quarantine OFF: both injected documents were ignored by the model (6/6 cases) |
+| A malicious or compromised **admin** uploading false rules | **Not defended** | an admin is trusted by definition; we limit the blast radius to their own company and keep versions, but there is no approval workflow. This is the real production gap |
+| Denial of wallet (spamming questions) | **Basic** | per-user limit; a real deployment also needs per-company and global quotas and abuse alerts |
+| Data stored about users | **Minimal by design** | no question text is stored server-side; the chat history lives only in the user's browser tab |
+
+**Bottom line:** isolation is robust by construction; hallucination and injection are reduced and measured, not eliminated. That is why every answer shows its source text.
 
 **What the guardrails do not catch (be upfront):** a wrong *claim that uses no new number* (e.g. "interns are eligible"
 when the policy says they are not). That is why we also *measure* faithfulness (below) instead of assuming.
