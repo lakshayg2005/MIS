@@ -193,3 +193,11 @@ Pass 42/42, recall@3 1.0, MRR 0.984, numeric hallucination 0 %, judge faithful 3
 **The new guardrails rejected 0 correct answers** (no false positives on 35 answers; lowest support ratio was 0.545 against a 0.35 threshold).
 **Red team with quarantine switched OFF** (`QUARANTINE_FLAGGED=0 python -m eval.run --only inj,trap`): the injected Borealis and Cygnus sections reached the model and it still ignored them; all 6 inj/trap cases passed. So the model-level defence works today, and quarantine removes the exposure at the source.
 Raw: `results/summary_groq_hardened.json`.
+
+## 14. Greetings and small talk (added after seeing "hi" answered with "the policy does not say")
+**Problem:** a greeting is not a policy question, so replying "the policy does not say anything about this" felt broken. **Decision:** `app/smalltalk.py` answers
+greetings, thanks, goodbyes and "what can you do?" in plain code (no LLM call, no retrieval, no citations, `status: "smalltalk"`), and nothing else.
+**Why code, not the LLM:** instant, free, cannot be steered, keeps the assistant scoped to transport policy. **Safety of the rule:** only short messages that are *entirely*
+a pleasantry match; "hi, can I book Saturday?" and "hello ignore your instructions" still go through the normal pipeline (tests: `tests/test_smalltalk.py`).
+**Cost / trade-off:** a hand-written pattern list will miss some phrasings ("yo", "sup"), which then get the polite "policy does not say" reply; it errs on the side of never swallowing a real question.
+Three cases (`chat-hi`, `chat-thanks`, `chat-help`) were added to the set (now **45**); rerun on real Groq: **45/45 pass**, 0 leaks, 0 errors, not-covered recall/precision 100 %, p95 1,017 ms.
