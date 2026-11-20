@@ -38,7 +38,7 @@ Running without Docker: `pip install -r requirements.txt`, then
 | `GET /health` | none | liveness |
 | `POST /demo/token`, `GET /` | none, only if `DEMO_MODE=1` | demo web page and a stand-in login. **Off by default** |
 
-Responses: `200 answered` (with citations), `200 not_covered`, `200 smalltalk` (greeting/thanks/help, answered by plain code: no LLM call, no citations; only short messages that are *entirely* a pleasantry match), `503 error` + `Retry-After` (try again), `401/403/400/413/415/422` for bad token/role/input/uploads.
+Responses: `200 answered` (with citations), `200 not_covered`, `200 smalltalk` (greetings, thanks, "are you a dog?", "how do you work?", "do you store my chats?", "can you book a cab?": fixed truthful replies from plain code, no LLM call, no citations; only short messages that are *entirely* such a question match), `503 error` + `Retry-After` (try again), `401/403/400/413/415/422` for bad token/role/input/uploads.
 
 ```
 curl -s localhost:8000/ask -H "Authorization: Bearer $(python -m scripts.issue_token acme)" \

@@ -2,7 +2,7 @@
  {
   "mode": "vector",
   "llm": "groq",
-  "cases": 45,
+  "cases": 48,
   "case_pass_pct": 100.0,
   "retrieval": {
    "recall@1": 0.969,
@@ -19,7 +19,7 @@
    "citation_precision": 1.0,
    "citation_recall": 1.0,
    "numeric_hallucination_rate": 0.0,
-   "support_ratio_mean": 0.875,
+   "support_ratio_mean": 0.873,
    "guardrail_rejected_attempts": 0,
    "judge_faithful_rate": 1.0,
    "judge_relevant_rate": 1.0,
@@ -30,10 +30,10 @@
   "not_covered_precision_pct": 100.0,
   "cross_company_leaks": 0,
   "errors_503": 0,
-  "latency_ms_p50": 703,
-  "latency_ms_p95": 1017,
-  "retrieval_only_ms_p50": 147.7,
-  "retrieval_only_ms_p95": 202.6,
+  "latency_ms_p50": 640,
+  "latency_ms_p95": 935,
+  "retrieval_only_ms_p50": 148.0,
+  "retrieval_only_ms_p95": 207.6,
   "max_llm_calls": 1,
   "max_citations": 2
  }

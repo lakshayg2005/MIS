@@ -201,3 +201,12 @@ greetings, thanks, goodbyes and "what can you do?" in plain code (no LLM call, n
 a pleasantry match; "hi, can I book Saturday?" and "hello ignore your instructions" still go through the normal pipeline (tests: `tests/test_smalltalk.py`).
 **Cost / trade-off:** a hand-written pattern list will miss some phrasings ("yo", "sup"), which then get the polite "policy does not say" reply; it errs on the side of never swallowing a real question.
 Three cases (`chat-hi`, `chat-thanks`, `chat-help`) were added to the set (now **45**); rerun on real Groq: **45/45 pass**, 0 leaks, 0 errors, not-covered recall/precision 100 %, p95 1,017 ms.
+
+## 15. Questions about the assistant itself, and off-topic questions
+**Problem found in use:** "how are you being implemented" and "are you a dog" were answered "the policy does not say anything about this", which is
+technically honest but confusing. **Decision: no free-form LLM chat.** Instead `app/smalltalk.py` gives fixed, reviewed, truthful replies (no LLM call) for:
+identity ("are you a dog / human / AI"), how it works, privacy ("do you store my chats"), "can you book a cab" (it cannot, and says what it can do), plus greetings, thanks and help.
+**Why not let the LLM chat:** it would have no excerpts to ground it (so the numeric/support/citation guardrails cannot apply), answers would vary run to run, it widens the injection surface, and it turns a policy assistant into a general chatbot.
+**Off-topic questions** (nothing in the policy is similar, e.g. "capital of France") now get a clearer message ("I couldn't find anything about this in your transport policy... otherwise this is outside what I can help with") instead of implying the policy was consulted and found silent. Still no LLM call.
+**Trade-off:** patterns are hand-written, so unusual phrasings fall through to the polite not-covered reply. The rules only match short messages that are entirely a pleasantry/meta question, so a real policy question is never swallowed (tests: `tests/test_smalltalk.py`).
+Eval set is now **48** cases (6 small-talk/meta). Real Groq run: **48/48 pass**, recall@3 1.0, judge faithful 100 %, 0 leaks, 0 errors, p95 935 ms.
