@@ -124,6 +124,7 @@ function citations(data) {
 function view(data, status) {
   if (status === 429) return ["err", "Slow down a little", data.answer || "Please wait a minute and try again."];
   if (data.status === "smalltalk") return ["chat", "Assistant", data.answer];
+  if (data.status === "not_covered" && data.reason === "no_evidence") return ["nc", "Outside what I can help with", data.answer];
   if (data.status === "not_covered") return ["nc", "The policy does not say", data.answer];
   if (data.status === "error" || status >= 400) return ["err", "Please try again", data.answer || "Something went wrong. Please try again in a moment."];
   return ["ok", "From your company's policy", data.answer];

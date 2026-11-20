@@ -6,7 +6,7 @@ with real content ("hi, can I book Saturday?") goes through the normal pipeline.
 """
 import re
 
-_GREET = re.compile(r"^(hi+|hello+|hey+|hiya|heya|namaste|hola|good (morning|afternoon|evening)|greetings)( (there|team|assistant|bot|everyone))?$")
+_GREET = re.compile(r"^(hi+|hello+|hey+|hiya|heya|yo+|sup|wassup|whats up|what s up|howdy|namaste|hola|good (morning|afternoon|evening)|greetings)( (there|team|assistant|bot|everyone|man|bro))?$|^how are (you|u)( doing| today)?$")
 _THANKS = re.compile(r"^((ok|okay|great|cool|nice)[ ,]+)?(thanks|thank you|thx|ty|thank you (so much|very much)|thanks a lot)( (a lot|so much))?$")
 _BYE = re.compile(r"^((ok|okay)[ ,]+)?(bye|goodbye|see you|see ya|good night)$")
 _HELP = re.compile(r"^(help|help me|what can you do|what do you do|who are you|what are you|how does this work|how do i use this|menu)$")

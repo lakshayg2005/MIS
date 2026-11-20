@@ -4,7 +4,7 @@ from app.smalltalk import smalltalk_reply
 from tests.conftest import ScriptedLLM
 
 
-@pytest.mark.parametrize("msg", ["hi", "Hi!", "hello", "Hello there", "HEY", "hiii", "Good morning", "namaste", "are you a dog", "Are you a human?", "are you an AI", "how are you being implemented",
+@pytest.mark.parametrize("msg", ["hi", "Hi!", "hello", "Hello there", "HEY", "hiii", "Good morning", "namaste", "Yo", "yo bro", "sup", "how are you", "what's up", "are you a dog", "Are you a human?", "are you an AI", "how are you being implemented",
                                  "How do you work?", "what model are you", "do you store my chats?", "can you book a cab", "who built you",
                                  "thanks", "Thank you!", "ok thanks", "bye", "help", "What can you do?", "who are you"])
 def test_pleasantries_are_recognised(msg):
