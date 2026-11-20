@@ -31,8 +31,11 @@ class PolicyStore:
                      company TEXT NOT NULL, version INTEGER NOT NULL, title TEXT NOT NULL,
                      status TEXT NOT NULL CHECK(status IN ('active','superseded')),
                      chunk_count INTEGER NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                     PRIMARY KEY(company, version))"""
+                     file_sha256 TEXT, PRIMARY KEY(company, version))"""
             )
+            cols = [r[1] for r in c.execute("PRAGMA table_info(policies)")]
+            if "file_sha256" not in cols:  # databases created before change detection existed
+                c.execute("ALTER TABLE policies ADD COLUMN file_sha256 TEXT")
             # DB-level guarantee: at most one active version per company.
             c.execute("CREATE UNIQUE INDEX IF NOT EXISTS one_active ON policies(company) WHERE status='active'")
 
@@ -55,24 +58,37 @@ class PolicyStore:
             return [r[0] for r in c.execute("SELECT company FROM policies WHERE status='active' ORDER BY company")]
 
     # ---- write path (used by ingestion only) ---------------------------------------------
-    def stage(self, company, version, doc_title, chunks, embeddings):
+    def active_file_hash(self, company):
+        with closing(self._conn()) as c:
+            row = c.execute("SELECT file_sha256 FROM policies WHERE company=? AND status='active'", (company,)).fetchone()
+        return row[0] if row else None
+
+    def vectors_by_hash(self, company) -> dict:
+        """content-hash -> stored vector, for the ACTIVE version. Lets a new version reuse vectors of unchanged chunks."""
+        act = self.active(company)
+        if act is None:
+            return {}
+        res = self._collection(company).get(where={"version": act[0]}, include=["embeddings", "metadatas"])
+        return {m["hash"]: [float(x) for x in v] for m, v in zip(res["metadatas"], res["embeddings"]) if m.get("hash")}
+
+    def stage(self, company, version, doc_title, chunks, embeddings, hashes):
         ids = [f"{company}:v{version}:{ch.key}" for ch in chunks]
         metas = [
             {"company": company, "version": version, "section": ch.section, "title": ch.title,
-             "heading": ch.heading, "page": ch.page, "doc_title": doc_title, "suspicious": ch.suspicious}
-            for ch in chunks
+             "heading": ch.heading, "page": ch.page, "doc_title": doc_title, "suspicious": ch.suspicious, "hash": h}
+            for ch, h in zip(chunks, hashes)
         ]
         self._collection(company).add(ids=ids, documents=[ch.text for ch in chunks], embeddings=embeddings, metadatas=metas)
 
     def drop_version(self, company, version):
         self._collection(company).delete(where={"version": version})
 
-    def activate(self, company, version, title, chunk_count):
+    def activate(self, company, version, title, chunk_count, file_sha256=None):
         """Atomic switch. Either the new version is active and the old one superseded, or nothing changed."""
         with closing(self._conn()) as c, c:  # `with c` = one transaction, rolled back on error
             c.execute("UPDATE policies SET status='superseded' WHERE company=? AND status='active'", (company,))
-            c.execute("INSERT INTO policies(company, version, title, status, chunk_count) VALUES (?,?,?,'active',?)",
-                      (company, version, title, chunk_count))
+            c.execute("INSERT INTO policies(company, version, title, status, chunk_count, file_sha256) VALUES (?,?,?,'active',?,?)",
+                      (company, version, title, chunk_count, file_sha256))
 
     def purge_inactive(self, company):
         """Delete chunks of every non-active version ('old one is dead'). Safe to retry."""

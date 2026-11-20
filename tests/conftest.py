@@ -36,7 +36,7 @@ def seeded_dir(tmp_path_factory):
     from app.ingest import Ingestor
     from app.store import PolicyStore
     d = tmp_path_factory.mktemp("seed") / "var"
-    store, ing = PolicyStore(str(d)), Ingestor(PolicyStore(str(d)), HashEmbedder(), 10**6)
+    store, ing = PolicyStore(str(d)), Ingestor(PolicyStore(str(d)), HashEmbedder(), 10**6, "hash")
     for name in ("acme", "borealis", "cygnus"):
         ing.ingest(name, (POLICIES / f"{name}_v1.md").read_bytes())
     del store, ing

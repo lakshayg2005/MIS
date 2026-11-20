@@ -71,7 +71,7 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float) -> tuple:
 
     s = Settings(data_dir=tempfile.mkdtemp(), retrieval_mode=mode, llm_provider=llm_name)
     emb, store = make_embedder(s.embedder), PolicyStore(s.data_dir)
-    ing = Ingestor(store, emb, s.max_policy_bytes)
+    ing = Ingestor(store, emb, s.max_policy_bytes, s.embedder)
     from app.main import seed_if_empty
     seed_if_empty(s, store, ing)
     retriever = Retriever(store, emb, mode, s.top_k)

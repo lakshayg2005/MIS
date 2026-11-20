@@ -23,10 +23,13 @@ def test_new_version_replaces_old_everywhere(make_client, tok, policy_text):
     assert {ch["version"] for ch in store.get_chunks("acme", 1)} == set()
 
 
-def test_old_or_same_version_rejected(make_client, tok, policy_text):
+def test_same_file_is_noop_and_older_version_rejected(make_client, tok, policy_text):
     c = make_client()
-    r = c.put("/admin/policy", content=policy_text("acme_v1.md"), headers={**tok("acme", "admin"), "Content-Type": "text/markdown"})
-    assert r.status_code == 409
+    h = {**tok("acme", "admin"), "Content-Type": "text/markdown"}
+    r = c.put("/admin/policy", content=policy_text("acme_v1.md"), headers=h)
+    assert r.status_code == 200 and r.json()["unchanged"] is True  # identical file: nothing happens
+    assert c.put("/admin/policy", content=policy_text("acme_v2.md"), headers=h).status_code == 200
+    assert c.put("/admin/policy", content=policy_text("acme_v1.md"), headers=h).status_code == 409  # now v1 is older
 
 
 def test_malformed_document_leaves_policy_untouched(make_client, tok):

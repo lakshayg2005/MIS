@@ -49,7 +49,7 @@ def create_app(settings: Settings | None = None, llm=None, embedder=None) -> Fas
         store = PolicyStore(settings.data_dir)
         for c in store.companies():
             store.purge_inactive(c)  # clear chunks left by a crash mid-ingest
-        ingestor = Ingestor(store, emb, settings.max_policy_bytes)
+        ingestor = Ingestor(store, emb, settings.max_policy_bytes, settings.embedder)
         seed_if_empty(settings, store, ingestor)
         emb.embed(["warm up"])  # load the model before the first user request
         retriever = Retriever(store, emb, settings.retrieval_mode, settings.top_k)
@@ -118,7 +118,8 @@ def create_app(settings: Settings | None = None, llm=None, embedder=None) -> Fas
         except IngestError as e:
             raise HTTPException(e.http_status, str(e)) from None
         return {"company": r.company, "version": r.version, "chunks": r.chunks,
-                "previous_version": r.previous_version, "flagged_sections": r.suspicious_sections}
+                "previous_version": r.previous_version, "flagged_sections": r.suspicious_sections,
+                "embedded_chunks": r.embedded, "reused_chunks": r.reused, "unchanged": r.unchanged}
 
     @app.exception_handler(Exception)
     async def unhandled(request, exc):
