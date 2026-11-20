@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from .guardrails import MIN_SUPPORT, support_ratio, ungrounded_numbers
 from .llm import LLMError
 from .retrieval import IsolationError
+from .smalltalk import smalltalk_reply
 
 log = logging.getLogger("service")
 
@@ -38,7 +39,7 @@ For "not_covered" use "answer": "" and "citations": []."""
 
 @dataclass
 class Answer:
-    status: str  # answered | not_covered | error
+    status: str  # answered | not_covered | smalltalk | error
     message: str
     reason: str  # machine-readable why (for logs and the eval set)
     citations: list = field(default_factory=list)
@@ -116,6 +117,9 @@ class QuestionService:
 
     def _ask(self, company, question, t0, stage) -> Answer:
         remaining = lambda: self.s.total_budget_s - (time.monotonic() - t0)  # noqa: E731
+        chat = smalltalk_reply(question)
+        if chat is not None:  # a pleasantry, not a policy question: no retrieval, no LLM, no citations
+            return Answer("smalltalk", chat, "smalltalk")
         stage("retrieving", {})
         fut = self._pool.submit(self.retriever.search, company, question)
         try:

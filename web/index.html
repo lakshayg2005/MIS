@@ -30,7 +30,7 @@
   .chip:hover { border-color:var(--brand); }
   .user { align-self:flex-end; background:var(--user); border-radius:14px 14px 4px 14px; padding:9px 14px; max-width:85%; white-space:pre-wrap; }
   .bot { align-self:flex-start; width:100%; background:var(--card); border:1px solid var(--line); border-left:5px solid var(--ok); border-radius:12px; padding:14px 16px; }
-  .bot.nc { border-left-color:var(--warn); } .bot.err { border-left-color:var(--err); }
+  .bot.nc { border-left-color:var(--warn); } .bot.err { border-left-color:var(--err); } .bot.chat { border-left-color:var(--brand); } .bot.chat .tag { color:var(--brand); }
   .tag { font-size:.74rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ok); margin-bottom:4px; }
   .bot.nc .tag { color:var(--warn); } .bot.err .tag { color:var(--err); }
   .answer { margin:0; white-space:pre-wrap; }
@@ -123,6 +123,7 @@ function citations(data) {
 
 function view(data, status) {
   if (status === 429) return ["err", "Slow down a little", data.answer || "Please wait a minute and try again."];
+  if (data.status === "smalltalk") return ["chat", "Assistant", data.answer];
   if (data.status === "not_covered") return ["nc", "The policy does not say", data.answer];
   if (data.status === "error" || status >= 400) return ["err", "Please try again", data.answer || "Something went wrong. Please try again in a moment."];
   return ["ok", "From your company's policy", data.answer];
@@ -131,7 +132,7 @@ function view(data, status) {
 // Fill an assistant card with the FINAL, already-validated answer. animate = reveal word by word (the text is already checked).
 function fillBot(card, q, data, status, animate) {
   const [kind, tag, text] = view(data, status);
-  card.className = "bot" + (kind === "nc" ? " nc" : kind === "err" ? " err" : "");
+  card.className = "bot" + (kind === "nc" ? " nc" : kind === "err" ? " err" : kind === "chat" ? " chat" : "");
   card.replaceChildren(el("div", "tag", tag));
   const p = el("p", "answer"); card.append(p);
   const finish = () => {
@@ -144,7 +145,7 @@ function fillBot(card, q, data, status, animate) {
     if (data.latency_ms !== undefined) card.append(el("div", "meta", "Answered in " + (data.latency_ms / 1000).toFixed(1) + " s"));
     scroll();
   };
-  if (!animate || kind !== "ok") { finish(); return; }
+  if (!animate || (kind !== "ok" && kind !== "chat")) { finish(); return; }
   const words = text.split(" "); let i = 0; card.onclick = () => { i = words.length; };
   const tick = () => { i += 1; p.textContent = words.slice(0, i).join(" "); scroll(); if (i < words.length) setTimeout(tick, 28); else { card.onclick = null; finish(); } };
   tick();
