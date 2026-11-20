@@ -14,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
 
+from .guardrails import ungrounded_numbers
 from .llm import LLMError
 from .retrieval import IsolationError
 
@@ -62,7 +63,7 @@ class BadModelOutput(Exception):
     pass
 
 
-def parse_model_output(raw: str, n_hits: int, other_companies: list) -> tuple:
+def parse_model_output(raw: str, n_hits: int, other_companies: list, hits: list | None = None, question: str = "") -> tuple:
     """Return (status, answer, [excerpt indexes]) or raise BadModelOutput. Model output is untrusted."""
     m = re.search(r"\{.*\}", raw, re.S)  # tolerate ```json fences / chatter around the object
     if not m:
@@ -91,6 +92,10 @@ def parse_model_output(raw: str, n_hits: int, other_companies: list) -> tuple:
     for other in other_companies:  # plain-code leak check: the answer may not name another tenant
         if re.search(rf"\b{re.escape(other)}\b", answer, re.I):
             raise BadModelOutput("answer mentions another company")
+    if hits is not None:  # numeric grounding: a number the cited text and the question do not contain was invented
+        bad = ungrounded_numbers(answer, [hits[i - 1]["text"] for i in idx[:3]], question)
+        if bad:
+            raise BadModelOutput(f"ungrounded numbers {sorted(bad)}")
     return "answered", answer.strip(), idx[:3]
 
 
@@ -141,7 +146,7 @@ class QuestionService:
                 log.error("llm failed: %s", e)
                 return Answer("error", ERROR_MSG, "llm_failed", llm_calls=calls, retrieved=ids)
             try:
-                status, text, idx = parse_model_output(raw, len(res.hits), others)
+                status, text, idx = parse_model_output(raw, len(res.hits), others, res.hits, question)
             except BadModelOutput as e:
                 last_reason = "bad_model_output"
                 log.warning("bad model output (%s)", e)
