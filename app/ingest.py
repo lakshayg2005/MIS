@@ -39,8 +39,9 @@ class IngestResult:
 
 
 class Ingestor:
-    def __init__(self, store: PolicyStore, embedder, max_bytes: int, embedder_name: str = ""):
+    def __init__(self, store: PolicyStore, embedder, max_bytes: int, embedder_name: str = "", granularity: str = "section", expander=None):
         self._store, self._embedder, self._max_bytes = store, embedder, max_bytes
+        self._granularity, self._expander = granularity, expander  # chunking variant; optional LLM question expansion
         self._embedder_name = embedder_name  # part of every chunk hash: a different model must never reuse old vectors
         self._locks = defaultdict(threading.Lock)  # one writer per company at a time
 
@@ -50,7 +51,7 @@ class Ingestor:
         if len(data) > self._max_bytes:
             raise IngestError("document too large", 413)
         try:
-            parsed = parse_policy(extract_lines(data, kind))
+            parsed = parse_policy(extract_lines(data, kind), self._granularity)
         except PolicyFormatError as e:
             raise IngestError(f"invalid policy document: {e}") from e
 
@@ -64,6 +65,9 @@ class Ingestor:
                     f"version {parsed.version} is not newer than the active version {active[0]}", 409)
             try:
                 texts = [f"{c.heading} / {c.title}: {c.text}" for c in parsed.chunks]
+                if self._expander is not None:  # doc2query: append likely employee questions to what gets embedded
+                    texts = [t + " Questions employees ask: " + " ".join(self._expander.questions(c.title, c.parent or c.text))
+                             for t, c in zip(texts, parsed.chunks)]
                 hashes = [hashlib.sha256(f"{self._embedder_name}\n{t}".encode()).hexdigest() for t in texts]
                 known = self._store.vectors_by_hash(company)  # vectors of the active version, by content hash
                 todo = [i for i, h in enumerate(hashes) if h not in known]  # only NEW or CHANGED text is embedded
