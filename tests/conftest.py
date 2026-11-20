@@ -53,7 +53,7 @@ def seeded_dir(tmp_path_factory):
 def settings(tmp_path, seeded_dir):
     shutil.copytree(seeded_dir, tmp_path / "var")
     return Settings(data_dir=str(tmp_path / "var"), seed_dir=str(POLICIES), embedder="hash",
-                    min_similarity=0.05, jwt_secret="test-secret-test-secret-test-secret!")
+                    min_similarity=0.05, rerank=False, jwt_secret="test-secret-test-secret-test-secret!")
 
 
 @pytest.fixture

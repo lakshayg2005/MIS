@@ -23,6 +23,7 @@ class Settings:
     # --- retrieval ---
     embedder: str = field(default_factory=lambda: os.getenv("EMBEDDER", "minilm"))  # minilm | hash
     retrieval_mode: str = field(default_factory=lambda: os.getenv("RETRIEVAL_MODE", "vector"))  # vector | hybrid
+    rerank: bool = field(default_factory=lambda: os.getenv("RERANK", "0") == "1")  # cross-encoder reranking of the candidates
     top_k: int = 3  # chunks retrieved AND shown to the LLM: also the brief's cap of 3 cited chunks, and fewer tokens per call
     min_similarity: float = field(default_factory=lambda: _f("MIN_SIMILARITY", 0.25))  # below this: "not covered", no LLM call
     # --- llm ---

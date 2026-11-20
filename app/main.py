@@ -76,7 +76,12 @@ def create_app(settings: Settings | None = None, llm=None, embedder=None) -> Fas
         ingestor = Ingestor(store, emb, settings.max_policy_bytes, settings.embedder)
         seed_if_empty(settings, store, ingestor)
         emb.embed(["warm up"])  # load the model before the first user request
-        retriever = Retriever(store, emb, settings.retrieval_mode, settings.top_k)
+        reranker = None
+        if settings.rerank:
+            from .rerank import CrossEncoderReranker
+            reranker = CrossEncoderReranker()  # loaded once at startup, not on the first user request
+            reranker.rerank("warm up", [{"title": "a", "text": "b"}, {"title": "c", "text": "d"}])
+        retriever = Retriever(store, emb, settings.retrieval_mode, settings.top_k, reranker=reranker)
         app.state.service = QuestionService(settings, store, retriever,
                                             llm or make_llm(settings.llm_provider, settings.llm_api_key, settings.llm_model))
         app.state.ingestor = ingestor
