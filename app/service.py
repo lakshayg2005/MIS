@@ -45,6 +45,7 @@ class Answer:
     llm_calls: int = 0
     latency_ms: int = 0
     retrieved: list = field(default_factory=list)  # ids of retrieved chunks (eval/debug only, not returned to users)
+    rejections: list = field(default_factory=list)  # why earlier model attempts were rejected (eval/debug only)
 
     def to_dict(self):
         return {"status": self.status, "answer": self.message, "citations": self.citations,
@@ -133,7 +134,7 @@ class QuestionService:
 
         prompt = build_prompt(question, res.hits)
         others = [c for c in self.store.companies() if c != company]
-        calls, last_reason = 0, "bad_model_output"
+        calls, last_reason, rejected = 0, "bad_model_output", []
         while calls < self.s.max_llm_calls:
             if calls > 0 and remaining() < self.s.retry_min_remaining_s:
                 break
@@ -149,12 +150,13 @@ class QuestionService:
                 status, text, idx = parse_model_output(raw, len(res.hits), others, res.hits, question)
             except BadModelOutput as e:
                 last_reason = "bad_model_output"
+                rejected.append(str(e))
                 log.warning("bad model output (%s)", e)
                 continue
             if status == "not_covered":
-                return Answer("not_covered", NOT_COVERED_MSG, "model_not_covered", llm_calls=calls, retrieved=ids)
+                return Answer("not_covered", NOT_COVERED_MSG, "model_not_covered", llm_calls=calls, retrieved=ids, rejections=rejected)
             cites = [{"document": res.hits[i - 1]["doc_title"], "version": res.hits[i - 1]["version"],
                       "section": res.hits[i - 1]["section"], "page": res.hits[i - 1].get("page") or None, "title": res.hits[i - 1]["title"],
                       "excerpt": res.hits[i - 1]["text"]} for i in idx]
-            return Answer("answered", text, "ok", cites, calls, retrieved=ids)
-        return Answer("error", ERROR_MSG, last_reason, llm_calls=calls, retrieved=ids)
+            return Answer("answered", text, "ok", cites, calls, retrieved=ids, rejections=rejected)
+        return Answer("error", ERROR_MSG, last_reason, llm_calls=calls, retrieved=ids, rejections=rejected)
