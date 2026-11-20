@@ -16,11 +16,31 @@ HELP_TEXT = ("I answer questions about your company's transport policy, such as 
              "policy section it comes from. Try: \"After what time is a security escort mandatory for women on drops?\"")
 
 
+_ENTITIES = ("human|person|real|robot|bot|chatbot|ai|assistant|gpt|chatgpt|claude|llm|machine|computer|program|dog|cat|animal|alive|"
+             "man|woman|boy|girl|male|female|bird|monkey|parrot|alien|ghost|god|robo|bhai|sir|madam")
+_IDENTITY = re.compile(rf"^(are|r) (you|u) (a |an |the |really |actually )*({_ENTITIES})( or not)?$|^(is this|am i talking to) (a |an )?(real )?(human|person|bot|robot|ai|chatbot)$")
+_HOW_BUILT = re.compile(r"^(how (are|were|r) (you|u) (being |getting )?(implemented|built|made|created|developed|designed|trained|coded|programmed)|"
+                        r"how do (you|u) work|how does (it|this|the assistant|the bot) work|what (model|llm|ai|tech|technology) (are you|do you use|is this|are you using)|"
+                        r"(what|which) (are|r) (you|u) (built|made|running|powered) (with|on|by)|who (made|built|created|developed) (you|u|this))$")
+_PRIVACY = re.compile(r"^(do|will|does) (you|u|this) (store|save|remember|keep|record|log|track) (my |our |the )?(chats?|questions?|conversations?|messages?|data|history|info|information)$")
+_BOOK = re.compile(r"^(can|could|will) (you|u) (please )?(book|cancel|arrange|schedule|reserve|get)( me)?( a| my)? (cab|cabs|ride|trip|taxi|shuttle|seat)$")
+
+IDENTITY_TEXT = ("I'm an AI assistant, not a person or an animal. " + HELP_TEXT)
+HOW_TEXT = ("Here's how I work: when you ask a question, I look up your company's current transport policy, pick the most relevant "
+            "sections (at most 3), and a language model writes a short answer using only those sections. Before you see it, my "
+            "checks make sure it cites real sections and that every number in it appears in the policy text. If the policy doesn't "
+            "cover your question I say so instead of guessing. I only ever use your own company's policy.")
+PRIVACY_TEXT = ("I don't keep your questions on the server. This chat is stored only in your browser tab and disappears when you close "
+                "it, switch company or press New chat. Each question is answered on its own, so I don't remember earlier messages.")
+BOOK_TEXT = ("I can't book or cancel cabs. I can tell you what your policy says about booking, like cut-off times, approvals and "
+             "penalties. To actually book, please use your usual booking channel or the transport desk.")
+
+
 def smalltalk_reply(question: str):
     """-> reply text, or None when the message is a real question."""
     q = re.sub(r"[^a-z ]+", " ", question.lower())
     q = " ".join(q.split())
-    if not q or len(q) > 40:
+    if not q or len(q) > 70:
         return None
     if _GREET.match(q):
         return "Hello! " + HELP_TEXT
@@ -30,4 +50,12 @@ def smalltalk_reply(question: str):
         return "Goodbye! Come back any time you have a transport policy question."
     if _HELP.match(q):
         return HELP_TEXT
+    if _IDENTITY.match(q):
+        return IDENTITY_TEXT
+    if _HOW_BUILT.match(q):
+        return HOW_TEXT
+    if _PRIVACY.match(q):
+        return PRIVACY_TEXT
+    if _BOOK.match(q):
+        return BOOK_TEXT
     return None

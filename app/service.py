@@ -25,6 +25,9 @@ NOT_COVERED_MSG = ("Your company's current transport policy does not say anythin
                    "Please contact the transport desk.")
 ERROR_MSG = ("Sorry, I could not get an answer right now. Please try again in a moment. "
              "If it keeps failing, contact the transport desk.")
+NO_EVIDENCE_MSG = ("I couldn't find anything about this in your company's transport policy. If it is a transport question, "
+                   "please contact the transport desk. Otherwise this is outside what I can help with: I only answer questions "
+                   "about your transport policy (escorts, cut-offs, weekends, airport trips, guests, cost caps, no-shows).")
 NO_POLICY_MSG = "No transport policy is available for your company yet. Please contact the transport desk."
 
 SYSTEM_PROMPT = """You answer employee questions about ONE company's transport policy.
@@ -138,7 +141,7 @@ class QuestionService:
         if res.version is None:
             return Answer("not_covered", NO_POLICY_MSG, "no_policy", retrieved=ids)
         if not res.hits or res.best_sim < self.s.min_similarity:
-            return Answer("not_covered", NOT_COVERED_MSG, "no_evidence", retrieved=ids)
+            return Answer("not_covered", NO_EVIDENCE_MSG, "no_evidence", retrieved=ids)
 
         stage("drafting", {"sections": [{"section": h["section"], "title": h["title"]} for h in res.hits]})
         prompt = build_prompt(question, res.hits)
