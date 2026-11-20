@@ -3,8 +3,10 @@ WORKDIR /srv
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-# Bake the embedding model into the image so first start needs no internet and no download wait.
-RUN python -c "from chromadb.utils.embedding_functions import DefaultEmbeddingFunction as D; D()(['warm up'])"
+# Bake the models into the image so first start needs no internet and no download wait.
+ENV FASTEMBED_CACHE_PATH=/models
+RUN python -c "from chromadb.utils.embedding_functions import DefaultEmbeddingFunction as D; D()(['warm up'])" \
+ && python -c "from fastembed import TextEmbedding; list(TextEmbedding('sentence-transformers/all-MiniLM-L6-v2').embed(['x'])); from fastembed.rerank.cross_encoder import TextCrossEncoder; list(TextCrossEncoder('Xenova/ms-marco-MiniLM-L-6-v2').rerank('q',['d']))"
 COPY app ./app
 COPY scripts ./scripts
 COPY data ./data
