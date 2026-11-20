@@ -90,7 +90,7 @@ Two things changed at once (prompt and 5 → 3 chunks) because the 5 → 3 chang
 | My README claimed retrieval is about 20 ms | measured about 150 ms (CPU embedding of the question) | corrected the claim |
 | Tests took 71 s | each test re-seeded three policies | seed once per session, copy per test (12 s) |
 
-## 7. Test suite (`python -m pytest -q`, 62 tests, about 12 s, no network)
+## 7. Test suite (`python -m pytest -q`, 88 tests, about 12 s, no network)
 
 Chunking and PDF parsing (headers/footers stripped, page numbers, scanned/corrupt/empty/oversized PDFs) · versioned ingestion
 (only v2 answers after update, old chunks deleted, old/same version rejected, embedder crash and DB crash leave v1 untouched) ·
@@ -103,3 +103,69 @@ Groq client error mapping (429, 500, malformed, empty, timeout) · demo endpoint
 ## 8. Trade-off made for this report (as required)
 
 **Vector-only as default instead of the more sophisticated hybrid search.** I implemented hybrid because the brief invited it, measured it on the same fixed set, and it was not better while adding code, a cache and a second ranking to explain. I shipped the simpler option and kept hybrid behind a flag. Simple and maintainable beat clever, and the measurement is what justifies it.
+
+---
+
+# Update (branch `retrieval-v2`): incremental ingestion, speed, guardrail, richer metrics
+
+All numbers below are from the **same 42 cases** and the same pipeline, rerun after the changes (real Groq LLM, vector retrieval shipped,
+`results/summary_groq_retrieval_v2_with_judge.json`).
+
+## 9. Retrieval metrics (32 answerable cases, k = 3 = what the LLM sees)
+
+| Metric | Vector (shipped) | Hybrid |
+|---|---|---|
+| recall@1 | 0.969 | 0.938 |
+| **recall@3** | **1.000** | 1.000 |
+| precision@3 | 0.333 | 0.333 |
+| hit@1 | 0.969 | 0.938 |
+| MRR | 0.984 | 0.958 |
+| nDCG@3 | 0.988 | 0.969 |
+
+Reading it: the right section is **always** in the top 3 (recall@3 = 1.0), so the LLM always has the evidence. precision@3 can never exceed
+1/3 here because almost every question has exactly **one** relevant section and we show three, so 0.333 is the ceiling, not a weakness; use it
+only to compare modes. The only rank-1 miss is `hard-standby-borealis` (correct section ranked 2nd).
+
+## 10. Answer quality and hallucination metrics
+
+| Metric | Vector | Hybrid | Notes |
+|---|---|---|---|
+| Cases passed | 42/42 | 41/42 | same as before the changes: **no regression** |
+| fact_recall | 1.00 | 1.00 | required facts present |
+| citation_precision / recall | 1.00 / 1.00 | 0.968 / 1.00 | hybrid cited one extra, off-target section |
+| **numeric_hallucination_rate** | **0.0** | **0.0** | no answer contained a number absent from its cited text |
+| guardrail_rejected_attempts | 0 | 0 | the runtime guardrail never fired, so it also never rejected a good answer (no false positives) |
+| support_ratio (mean) | 0.872 | 0.874 | about 87 % of answer content words come from the cited text (the rest is phrasing: "you", "need to", ...) |
+| **judge_faithful_rate** | **1.00** (34/34 judged) | 1.00 (33/33) | independent model checks every claim against the excerpts |
+| judge_relevant_rate | 1.00 | 1.00 | answer addresses the question |
+| abstention recall (= 1 − false-answer rate) | 100 % | 100 % | every not-covered question refused |
+| abstention precision | 100 % | 85.7 % | hybrid refused once when it should have answered (`hard-grade-acme`) |
+| over-abstention | 0 % | 3.1 % | |
+| cross-company leaks | **0** | **0** | |
+| Latency p50 / p95, cold cache, incl. Groq | 679 / 943 ms | 618 / 890 ms | target p95 < 3 s |
+
+**Honest limits of these numbers.** (1) 0 % hallucination on 42 friendly cases does not prove it cannot happen. The guardrail firing zero
+times means "no false alarms here", not "proved effective"; its effectiveness is shown by unit tests that feed it invented numbers
+(`tests/test_guardrails.py`). (2) The judge (`gpt-oss-120b`) is from the same family as the answerer (`gpt-oss-20b`), so it can share blind spots; a
+different family (e.g. Qwen) would be a stronger check. (3) The numeric guardrail cannot catch a wrong claim that uses no new number
+(see GUARDRAILS.md). (4) `support_ratio` is a rough lexical proxy.
+
+## 11. What the retrieval-v2 changes achieved (before = pushed `main`, after = this branch)
+
+| Change | Before | After | Measured how |
+|---|---|---|---|
+| Policy update cost: embedding calls | 15 chunks embedded for Acme v1 to v2 | **6** embedded, 9 reused | `tests/test_incremental.py` (counting embedder) |
+| One sentence edited in a 15-chunk policy | 15 embedded | **1** embedded, 14 reused | live run of `scripts/sync_policies.py` |
+| Same file uploaded again | re-processed (or 409) | **no-op**, 0 embedded | `test_same_file_twice_is_a_noop` |
+| Retrieval time, question seen before | 150 ms | **1.5 ms** | 20 questions twice, real MiniLM |
+| Retrieval time, new question | 150 ms | 150 ms | unchanged: embedding the question dominates |
+| Answer quality (pass rate, recall@3, MRR, leaks) | 100 %, 1.0, 0.984, 0 | 100 %, 1.0, 0.984, 0 | no regression |
+| Hallucination guard | none at runtime | numeric grounding | tests + 0 false rejections in eval |
+
+**Where the time goes (why we did not add clustering):** embedding the question 134 ms, Chroma HNSW search 1.1 ms, registry lookup 0.04 ms. Chroma already
+uses an HNSW index, and with about 15 chunks per company a cluster layer could save at most about 1 ms, so it would add complexity for nothing.
+It becomes worth revisiting at tens of thousands of chunks per company.
+
+**Metadata filtering:** every search is already restricted by company (collection) and by `version = active` (metadata filter). I did **not** add a
+topic filter (e.g. "only escort sections for escort questions"): a wrong guess about the topic would hide the right chunk, and recall@3 is already 1.0, so
+the risk is not worth it on this data.
