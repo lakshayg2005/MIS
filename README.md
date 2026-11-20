@@ -22,6 +22,7 @@ Without a key the app still starts, using an offline fake LLM; answers are then 
 | Latency over HTTP | `python -m eval.bench --base http://localhost:8000` |
 | Get a token (mock identity provider) | `python -m scripts.issue_token acme` / `... borealis admin` |
 | Upload a new policy version | `python -m scripts.ingest_policy acme data/policies/acme_v2.pdf` |
+| Sync a whole folder (uploads only new/changed files; `--watch 30` to poll) | `python -m scripts.sync_policies data/policies` |
 
 Running without Docker: `pip install -r requirements.txt`, then
 `set -a; . ./.env; set +a; DEMO_MODE=1 uvicorn app.main:create_app --factory`.
@@ -54,7 +55,8 @@ curl -s localhost:8000/ask -H "Authorization: Bearer $(python -m scripts.issue_t
                  vector search (hybrid = vector + BM25 is optional, see EVALUATION.md); top 3; timeout 1 s; fail-closed company check on every chunk
    2 no/weak evidence? ─► "not covered" immediately, WITHOUT calling the LLM
    3 ONE LLM call: excerpts fenced as DATA, JSON answer + numbers of the excerpts used
-   4 validate: JSON shape, cited numbers ⊆ excerpts given, ≤3, ≥1, no other company named in the answer
+   4 validate: JSON shape, cited numbers ⊆ excerpts given, ≤3, ≥1, no other company named, and every number
+     in the answer must appear in the cited text or the question (numeric grounding)
    5 citations built from OUR metadata (document, version, section, page, text), never from model text
                               ▼
           answered | not_covered | error ("try again")
@@ -72,7 +74,17 @@ curl -s localhost:8000/ask -H "Authorization: Bearer $(python -m scripts.issue_t
 * **≤ 3 cited chunks.** Retrieval returns only the top 3 (`top_k = 3`), the LLM only ever sees those, and citations are capped at 3 in code. Also tested.
 * **p95 < 3 s.** Retrieval ≈ 0.14 s (mostly the CPU embedding of the question); one short LLM call ≈ 0.4–0.9 s; hard budget 2.8 s (retrieval timeout 1 s, LLM timeout = remaining budget). Measured numbers: [EVALUATION.md](EVALUATION.md).
 
-## Safety model
+## Incremental ingestion and change detection
+* Each chunk gets a **content hash** (SHA-256 of embedding-model name + chunk text). A new version reuses the stored vector of every chunk whose hash is unchanged and **embeds only new or changed chunks**. Measured: changing one sentence of Acme's policy embedded **1 chunk and reused 14**; Acme v1 to v2 embedded 6 and reused 9.
+* Each file has a **SHA-256 recorded when it is activated**. Uploading the identical file again is a no-op (nothing embedded, nothing changes).
+* `scripts/sync_policies.py` keeps a manifest of file hashes for a policy folder and uploads only new or changed files (`--watch N` polls). Polling is deliberate: no OS-specific dependency, easy to explain.
+* The hash includes the **model name**, so switching the embedding model never reuses vectors from another model. Reuse is **per company**.
+
+## Retrieval speed: what we measured, and what we did not build
+Per question: embedding it on CPU = **134 ms**, Chroma HNSW search = **1.1 ms**, registry lookup = **0.04 ms**. So 99 % of retrieval time is embedding the question.
+Clustering or index tuning could save about 1 ms, so it was **not built** (about 15 chunks per company). What helps is an LRU cache of recent question embeddings (employees repeat the same questions): a repeated question drops from **150 ms to 1.5 ms**. Chroma already indexes with HNSW; we also filter on company (collection) and active version (metadata filter) on every search.
+
+## Safety model (full list with tests: [GUARDRAILS.md](GUARDRAILS.md))
 
 | Threat | Defence (where) |
 |---|---|
@@ -82,6 +94,7 @@ curl -s localhost:8000/ask -H "Authorization: Bearer $(python -m scripts.issue_t
 | Admin of A overwrites B | ingestion always targets the token's own company (tested) |
 | Injection text inside a policy ("ignore previous instructions…") | excerpts are fenced as data and the system prompt says so; the model cannot call tools or reach other companies; answers naming another company are rejected; such sections are flagged at ingestion. Two sample policies contain real injections and are in the eval set |
 | Injection in the user's question | same: it can change wording at worst, never the company or the data the model sees |
+| Model invents a number, time or amount | numeric grounding: every number must appear in the cited excerpt or the question, else the answer is rejected (`app/guardrails.py`, tested) |
 | Model invents a section / cites nothing / returns garbage | citations come from our metadata; invalid JSON, out-of-range numbers, missing citations → one repair try → "try again" (parametrised tests) |
 | Half-updated policy | atomic version flip, rollback of staged chunks, startup cleanup (tests simulate embedder crash and DB crash) |
 | Big or hostile uploads | size limit, page limit, PDF validation, no OCR, section structure validated; failures return 4xx and change nothing |
@@ -116,8 +129,8 @@ curl -s localhost:8000/ask -H "Authorization: Bearer $(python -m scripts.issue_t
 ## Project layout
 ```
 app/      main.py (API)  auth.py  service.py (pipeline)  retrieval.py  store.py  ingest.py
-          chunking.py  documents.py (PDF/MD)  embeddings.py  llm.py  config.py
+          chunking.py  documents.py (PDF/MD)  embeddings.py  llm.py  guardrails.py  config.py
 data/policies/   3 companies + Acme v2, as .md source and .pdf (made by scripts/make_pdfs.py)
-tests/    62 tests, fake LLM, no network      eval/   evalset.jsonl, run.py, bench.py, results/
-web/      demo page    scripts/   token issuer, policy uploader, PDF generator
+tests/    80+ tests, fake LLM, no network      eval/   evalset.jsonl, run.py, bench.py, results/
+web/      demo page    scripts/   token issuer, policy uploader, folder sync, PDF generator
 ```
