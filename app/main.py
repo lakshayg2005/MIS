@@ -1,4 +1,6 @@
+import json
 import logging
+import queue
 import threading
 import time
 from collections import defaultdict, deque
@@ -7,7 +9,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from .auth import Principal, current_principal, issue_token
@@ -111,22 +113,59 @@ def create_app(settings: Settings | None = None, llm=None, embedder=None) -> Fas
         def index():
             return FileResponse(Path(__file__).resolve().parent.parent / "web" / "index.html")
 
-    @app.post("/ask")
-    def ask(body: AskBody, request: Request, who: Principal = Depends(current_principal)):
-        if not request.app.state.limiter.allow(f"{who.company}:{who.subject}"):
-            return JSONResponse({"status": "error", "reason": "rate_limited", "citations": [],
-                                 "answer": "You are asking too quickly. Please wait a minute and try again."},
-                                status_code=429, headers={"Retry-After": "30"})
+    def _validated_question(request: Request, body: AskBody, who: Principal):
+        """Shared by /ask and /ask/stream: rate limit + length check. Returns (question, error_response)."""
         q = body.question.strip()
         if not q or len(q) > settings.max_question_chars:
             raise HTTPException(400, f"question must be 1-{settings.max_question_chars} characters")
-        ans = request.app.state.service.ask(who.company, q)
+        if not request.app.state.limiter.allow(f"{who.company}:{who.subject}"):
+            return None, JSONResponse({"status": "error", "reason": "rate_limited", "citations": [],
+                                       "answer": "You are asking too quickly. Please wait a minute and try again."},
+                                      status_code=429, headers={"Retry-After": "30"})
+        return q, None
+
+    def _log(who, ans):
         log.info("ask company=%s sub=%s status=%s reason=%s ms=%d calls=%d chunks=%s", who.company, who.subject,
                  ans.status, ans.reason, ans.latency_ms, ans.llm_calls, ans.retrieved)
+
+    @app.post("/ask")
+    def ask(body: AskBody, request: Request, who: Principal = Depends(current_principal)):
+        q, err = _validated_question(request, body, who)
+        if err:
+            return err
+        ans = request.app.state.service.ask(who.company, q)
+        _log(who, ans)
         payload = ans.to_dict()
         if ans.status == "error":
             return JSONResponse(payload, status_code=503, headers={"Retry-After": "5"})
         return payload
+
+    @app.post("/ask/stream")
+    def ask_stream(body: AskBody, request: Request, who: Principal = Depends(current_principal)):
+        """Server-Sent Events: `stage` events while the pipeline runs, then ONE `final` event with the validated answer.
+        We deliberately do NOT stream raw model tokens: the answer is only shown after the guardrails have checked it."""
+        q, err = _validated_question(request, body, who)
+        if err:
+            return err
+        events: queue.Queue = queue.Queue()
+
+        def worker():
+            try:
+                ans = request.app.state.service.ask(who.company, q, on_stage=lambda name, info: events.put(("stage", {"step": name, **info})))
+                _log(who, ans)
+                events.put(("final", ans.to_dict()))
+            except Exception:
+                log.exception("stream worker failed")
+                events.put(("final", {"status": "error", "answer": ERROR_MSG, "citations": [], "reason": "internal"}))
+            events.put(None)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+        def gen():
+            while (item := events.get()) is not None:
+                yield f"event: {item[0]}\ndata: {json.dumps(item[1])}\n\n"
+
+        return StreamingResponse(gen(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
     @app.put("/admin/policy")
     async def put_policy(request: Request, who: Principal = Depends(current_principal)):

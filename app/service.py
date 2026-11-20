@@ -107,14 +107,16 @@ class QuestionService:
         self.s, self.store, self.retriever, self.llm = settings, store, retriever, llm
         self._pool = ThreadPoolExecutor(max_workers=8)
 
-    def ask(self, company: str, question: str) -> Answer:
+    def ask(self, company: str, question: str, on_stage=None) -> Answer:
+        """on_stage(name, info) is called as the pipeline advances (used by the streaming endpoint to show progress)."""
         t0 = time.monotonic()
-        ans = self._ask(company, question, t0)
+        ans = self._ask(company, question, t0, on_stage or (lambda *a: None))
         ans.latency_ms = int((time.monotonic() - t0) * 1000)
         return ans
 
-    def _ask(self, company, question, t0) -> Answer:
+    def _ask(self, company, question, t0, stage) -> Answer:
         remaining = lambda: self.s.total_budget_s - (time.monotonic() - t0)  # noqa: E731
+        stage("retrieving", {})
         fut = self._pool.submit(self.retriever.search, company, question)
         try:
             res = fut.result(timeout=self.s.retrieval_timeout_s)
@@ -134,6 +136,7 @@ class QuestionService:
         if not res.hits or res.best_sim < self.s.min_similarity:
             return Answer("not_covered", NOT_COVERED_MSG, "no_evidence", retrieved=ids)
 
+        stage("drafting", {"sections": [{"section": h["section"], "title": h["title"]} for h in res.hits]})
         prompt = build_prompt(question, res.hits)
         others = [c for c in self.store.companies() if c != company]
         calls, last_reason, rejected = 0, "bad_model_output", []
