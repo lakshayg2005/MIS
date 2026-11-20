@@ -144,3 +144,15 @@ def test_openai_compat_client_error_mapping():
         client(boom).complete("s", "u", 1)
     with pytest.raises(ValueError):
         OpenAICompatLLM("groq", "")
+
+
+def test_rewrite_call_counts_toward_the_cap_but_never_blocks_the_first_answer(make_client, tok):
+    """retrieval spent 1 call on query rewriting: the answer gets exactly 1 attempt and NO retry (cap = 2)."""
+    from app.retrieval import Retrieved
+    llm = ScriptedLLM("garbage")
+    c = make_client(llm, total_budget_s=0.9)  # < retry_min_remaining: a naive 'calls > 0' check would skip the first answer
+    svc = c.app.state.service
+    real = svc.retriever.search
+    svc.retriever.search = lambda co, q: (lambda r: Retrieved(r.version, r.hits, r.best_sim, llm_calls=1))(real(co, q))
+    r = c.post("/ask", json={"question": "At what time is a security escort mandatory for women on drops?"}, headers=tok("acme"))
+    assert llm.calls == 1 and r.json()["llm_calls"] == 2  # one answer attempt; total = rewrite + answer = 2, no third call

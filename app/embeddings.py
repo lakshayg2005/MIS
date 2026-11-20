@@ -40,7 +40,27 @@ class HashEmbedder:
         return out
 
 
+class FastEmbedder:
+    """fastembed (ONNX) models. Same idea as MiniLMEmbedder but a different runtime / model choice.
+    Some models (bge) want a special prefix on QUERIES, which fastembed applies in query_embed."""
+
+    MODELS = {"minilm-fast": "sentence-transformers/all-MiniLM-L6-v2", "bge-small": "BAAI/bge-small-en-v1.5"}
+
+    def __init__(self, key: str):
+        from fastembed import TextEmbedding
+
+        self._m = TextEmbedding(self.MODELS[key])
+
+    def embed(self, texts):
+        return [list(map(float, v)) for v in self._m.embed(list(texts))]
+
+    def embed_query(self, text):
+        return [list(map(float, v)) for v in self._m.query_embed([text])][0]
+
+
 def make_embedder(name: str) -> Embedder:
+    if name in FastEmbedder.MODELS:
+        return FastEmbedder(name)
     if name == "hash":
         return HashEmbedder()
     if name == "minilm":

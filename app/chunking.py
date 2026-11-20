@@ -43,6 +43,7 @@ class Chunk:
     page: int = 0  # page where the section starts (0 = unknown, e.g. Markdown)
     part: int = 1  # >1 only when a long section was split
     suspicious: bool = False
+    parent: str = ""  # sentence mode only: text of the whole section (returned instead of the single sentence: 'small-to-big')
 
     @property
     def key(self) -> str:
@@ -70,7 +71,33 @@ def _split_long(text: str) -> list:
     return parts
 
 
-def parse_policy(lines: list) -> ParsedPolicy:
+def _regroup(chunks: list, granularity: str) -> list:
+    """Experimental chunking variants (default 'section' leaves chunks untouched).
+    sentence: one chunk per sentence, each remembering its whole section ('small-to-big').
+    heading : one chunk per '## N. Heading' (coarser; cites 'section 3' instead of '3.1')."""
+    if granularity == "sentence":
+        out = []
+        for c in chunks:
+            sents = [x.strip() for x in re.split(r"(?<=[.!?])\s+", c.text.replace("\n", " ")) if x.strip()] or [c.text]
+            out += [Chunk(c.section, c.title, c.heading, x, c.page, i, c.suspicious, parent=c.text) for i, x in enumerate(sents, 1)]
+        return out
+    if granularity == "heading":
+        groups, order = {}, []
+        for c in chunks:
+            if c.heading not in groups:
+                groups[c.heading] = []
+                order.append(c.heading)
+            groups[c.heading].append(c)
+        out = []
+        for h in order:
+            g = groups[h]
+            num, _, title = h.partition(". ")
+            out.append(Chunk(num, title, h, "\n".join(f"{c.section} {c.title}: {c.text}" for c in g), g[0].page, 1, any(c.suspicious for c in g)))
+        return out
+    return chunks
+
+
+def parse_policy(lines: list, granularity: str = "section") -> ParsedPolicy:
     """lines: list of (page, text). Raises PolicyFormatError on anything we cannot cite reliably."""
     lines = [(p, t.rstrip()) for p, t in lines]
     nonblank = [t.strip() for _, t in lines if t.strip()]
@@ -110,4 +137,4 @@ def parse_policy(lines: list) -> ParsedPolicy:
     flush()
     if not chunks:
         raise PolicyFormatError("no numbered sections (like '3.1 Security escort') found")
-    return ParsedPolicy(title, version, chunks)
+    return ParsedPolicy(title, version, _regroup(chunks, granularity))

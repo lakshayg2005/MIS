@@ -49,6 +49,7 @@ class Retrieved:
     version: int | None
     hits: list  # ordered best first, each a dict with id/text/section/title/sim...
     best_sim: float  # best vector similarity (the "is there any evidence at all" signal)
+    llm_calls: int = 0  # LLM calls spent INSIDE retrieval (query rewriting); the answer step must stay within the total cap
 
 
 class IsolationError(Exception):
@@ -56,8 +57,9 @@ class IsolationError(Exception):
 
 
 class Retriever:
-    def __init__(self, store, embedder, mode: str, top_k: int, cache_size: int = 512):
+    def __init__(self, store, embedder, mode: str, top_k: int, cache_size: int = 512, reranker=None, transform=None, pool: int = 10):
         self._store, self._embedder, self._mode, self._k = store, embedder, mode, top_k
+        self._reranker, self._transform, self._pool = reranker, transform, pool  # optional extras; None = plain search
         # Embedding the question is ~99 % of retrieval time (measured: 134 ms vs 1 ms for the HNSW search), and
         # employees repeat the same questions daily, so remember recent question vectors. The vector depends only
         # on the text, never on the company, so sharing it between companies leaks nothing.
@@ -81,7 +83,8 @@ class Retriever:
                 self._qcache.move_to_end(key)
                 self.cache_hits += 1
                 return self._qcache[key]
-        vec = self._embedder.embed([question])[0]  # outside the lock: slow
+        embed_q = getattr(self._embedder, "embed_query", None)
+        vec = embed_q(question) if embed_q else self._embedder.embed([question])[0]  # outside the lock: slow
         with self._lock:
             self.cache_misses += 1
             self._qcache[key] = vec
@@ -94,28 +97,43 @@ class Retriever:
         if active is None:
             return Retrieved(None, [], 0.0)
         version = active[0]
-        qvec = self._embed_query(question)
-        vec_hits = self._store.query(company, version, qvec, 10)
+        qtext, calls = self._transform(question) if self._transform else (question, 0)
+        qvec = self._embed_query(qtext)
+        vec_hits = self._store.query(company, version, qvec, self._pool)
         best = max((h["sim"] for h in vec_hits), default=0.0)
 
         if self._mode == "hybrid" and vec_hits:
             chunks, bm = self._bm25(company, version)
-            sc = bm.scores(question)
-            lex = [c for s, c in sorted(zip(sc, chunks), key=lambda x: -x[0]) if s > 0][:10]
+            sc = bm.scores(qtext)
+            lex = [c for s, c in sorted(zip(sc, chunks), key=lambda x: -x[0]) if s > 0][: self._pool]
             fused, by_id = {}, {}
             for ranking in (vec_hits, lex):
                 for rank, h in enumerate(ranking):
                     fused[h["id"]] = fused.get(h["id"], 0.0) + 1.0 / (60 + rank)
                     by_id[h["id"]] = {**by_id.get(h["id"], {}), **h}
-            ordered = [by_id[i] for i in sorted(fused, key=fused.get, reverse=True)]
-            hits = ordered[: self._k]
             sim_by_id = {h["id"]: h["sim"] for h in vec_hits}
-            for h in hits:
+            cands = [by_id[i] for i in sorted(fused, key=fused.get, reverse=True)]
+            for h in cands:
                 h["sim"] = sim_by_id.get(h["id"], 0.0)
         else:
-            hits = vec_hits[: self._k]
+            cands = vec_hits
+
+        # small-to-big (sentence chunking): search on sentences, hand the LLM the whole section, one hit per section
+        seen, merged = set(), []
+        for h in cands:
+            if h.get("parent"):
+                if h["section"] in seen:
+                    continue
+                h = {**h, "text": h["parent"]}
+            seen.add(h["section"])
+            merged.append(h)
+        cands = merged
+
+        if self._reranker is not None:
+            cands = self._reranker.rerank(question, cands[: self._pool])
+        hits = cands[: self._k]
 
         for h in hits:  # defence in depth: never trust the filter alone
             if h.get("company") != company or h.get("version") != version:
                 raise IsolationError(f"chunk {h.get('id')} does not belong to {company} v{version}")
-        return Retrieved(version, hits, best)
+        return Retrieved(version, hits, best, calls)

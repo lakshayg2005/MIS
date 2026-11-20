@@ -146,13 +146,14 @@ class QuestionService:
         stage("drafting", {"sections": [{"section": h["section"], "title": h["title"]} for h in res.hits]})
         prompt = build_prompt(question, res.hits)
         others = [c for c in self.store.companies() if c != company]
-        calls, last_reason, rejected = 0, "bad_model_output", []
+        calls, attempts, last_reason, rejected = res.llm_calls, 0, "bad_model_output", []  # calls already spent on query rewriting count too
         while calls < self.s.max_llm_calls:
-            if calls > 0 and remaining() < self.s.retry_min_remaining_s:
+            if attempts > 0 and remaining() < self.s.retry_min_remaining_s:  # only a RETRY needs spare time
                 break
             if remaining() <= 0.1:
                 return Answer("error", ERROR_MSG, "budget_exhausted", llm_calls=calls, retrieved=ids)
             calls += 1
+            attempts += 1
             try:
                 raw = self.llm.complete(SYSTEM_PROMPT, prompt, remaining() - 0.05)
             except LLMError as e:

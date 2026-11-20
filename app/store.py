@@ -76,7 +76,7 @@ class PolicyStore:
         ids = [f"{company}:v{version}:{ch.key}" for ch in chunks]
         metas = [
             {"company": company, "version": version, "section": ch.section, "title": ch.title,
-             "heading": ch.heading, "page": ch.page, "doc_title": doc_title, "suspicious": ch.suspicious, "hash": h}
+             "heading": ch.heading, "page": ch.page, "doc_title": doc_title, "suspicious": ch.suspicious, "hash": h, "parent": ch.parent}
             for ch, h in zip(chunks, hashes)
         ]
         self._collection(company).add(ids=ids, documents=[ch.text for ch in chunks], embeddings=embeddings, metadatas=metas)

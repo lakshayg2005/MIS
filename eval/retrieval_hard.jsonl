@@ -1,0 +1,63 @@
+{"id": "r01", "company": "acme", "query": "my flight lands at 2am who has to sign off my cab from the airport", "relevant": ["5.2"], "kind": "situational", "split": "dev"}
+{"id": "r02", "company": "acme", "query": "female colleague getting dropped at 11pm will someone ride along", "relevant": ["3.1"], "kind": "vocab-mismatch", "split": "test"}
+{"id": "r03", "company": "acme", "query": "escrot after 8 pm", "relevant": ["3.1"], "kind": "typo", "split": "dev"}
+{"id": "r04", "company": "acme", "query": "cab money limit for unplanned rides", "relevant": ["5.3"], "kind": "vocab-mismatch", "split": "test"}
+{"id": "r05", "company": "acme", "query": "I'm an L1 and live 5 km from office, can I use office transport", "relevant": ["1.1"], "kind": "situational", "split": "dev"}
+{"id": "r06", "company": "acme", "query": "can a summer intern use the shuttle", "relevant": ["1.1"], "kind": "vocab-mismatch", "split": "test"}
+{"id": "r07", "company": "acme", "query": "I forgot to board the cab, any charge", "relevant": ["7.1"], "kind": "vocab-mismatch", "split": "dev"}
+{"id": "r08", "company": "acme", "query": "how late can I cancel without being charged", "relevant": ["2.2"], "kind": "paraphrase", "split": "test"}
+{"id": "r09", "company": "acme", "query": "booking window before my shift starts", "relevant": ["2.1"], "kind": "vocab-mismatch", "split": "dev"}
+{"id": "r10", "company": "acme", "query": "can my client's visitor ride with me", "relevant": ["6.1"], "kind": "vocab-mismatch", "split": "test"}
+{"id": "r11", "company": "acme", "query": "who do I call if the driver takes a strange route", "relevant": ["3.3"], "kind": "situational", "split": "dev"}
+{"id": "r12", "company": "acme", "query": "do cabs run on Diwali", "relevant": ["4.2"], "kind": "vocab-mismatch", "split": "test"}
+{"id": "r13", "company": "acme", "query": "last cab leaving the office at night", "relevant": ["3.2"], "kind": "paraphrase", "split": "dev"}
+{"id": "r14", "company": "acme", "query": "Sunday cab needs whose approval", "relevant": ["4.1"], "kind": "short", "split": "test"}
+{"id": "r15", "company": "acme", "query": "my shift ends at 10pm am I eligible", "relevant": ["1.2"], "kind": "situational", "split": "dev"}
+{"id": "r16", "company": "acme", "query": "how many missed rides before my cab access is blocked for the month", "relevant": ["7.2"], "kind": "vocab-mismatch", "split": "test"}
+{"id": "r17", "company": "acme", "query": "request inside the notice period who approves", "relevant": ["5.1", "2.1"], "kind": "multi-section", "split": "dev"}
+{"id": "r18", "company": "acme", "query": "weekend cab for a new intern", "relevant": ["4.1", "1.1"], "kind": "multi-section", "split": "test"}
+{"id": "r19", "company": "acme", "query": "airport cab above the price cap", "relevant": ["5.2", "5.3"], "kind": "multi-section", "split": "dev"}
+{"id": "r20", "company": "acme", "query": "interns night shift transport", "relevant": ["1.1"], "kind": "short", "split": "test"}
+{"id": "r21", "company": "acme", "query": "no-show twice in a month what is deducted", "relevant": ["7.1"], "kind": "paraphrase", "split": "dev"}
+{"id": "r22", "company": "borealis", "query": "I live 30 km away, do I qualify for pickup", "relevant": ["1.1"], "kind": "situational", "split": "dev"}
+{"id": "r23", "company": "borealis", "query": "contractor wants the shuttle", "relevant": ["1.1"], "kind": "vocab-mismatch", "split": "test"}
+{"id": "r24", "company": "borealis", "query": "late night drop for women, guard needed?", "relevant": ["3.1"], "kind": "vocab-mismatch", "split": "dev"}
+{"id": "r25", "company": "borealis", "query": "cab at 11pm shared with others who gets dropped last", "relevant": ["3.2"], "kind": "situational", "split": "test"}
+{"id": "r26", "company": "borealis", "query": "last minute cab request 1 hour before, what can I do", "relevant": ["2.1"], "kind": "situational", "split": "dev"}
+{"id": "r27", "company": "borealis", "query": "cancel booking 30 minutes before pickup", "relevant": ["2.2"], "kind": "paraphrase", "split": "test"}
+{"id": "r28", "company": "borealis", "query": "I need a cab on Saturday for the migration project", "relevant": ["4.1"], "kind": "situational", "split": "dev"}
+{"id": "r29", "company": "borealis", "query": "working on Republic Day how do I get to office", "relevant": ["4.2"], "kind": "vocab-mismatch", "split": "test"}
+{"id": "r30", "company": "borealis", "query": "who approves an extra trip outside my roster", "relevant": ["5.1"], "kind": "paraphrase", "split": "dev"}
+{"id": "r31", "company": "borealis", "query": "airport drop booking how many days ahead", "relevant": ["5.2"], "kind": "paraphrase", "split": "test"}
+{"id": "r32", "company": "borealis", "query": "reimbursement limit for a cab ride", "relevant": ["5.3"], "kind": "vocab-mismatch", "split": "dev"}
+{"id": "r33", "company": "borealis", "query": "can my cousin join the evening shuttle", "relevant": ["6.1"], "kind": "vocab-mismatch", "split": "test"}
+{"id": "r34", "company": "borealis", "query": "any penalty for skipping my cab", "relevant": ["7.1"], "kind": "vocab-mismatch", "split": "dev"}
+{"id": "r35", "company": "borealis", "query": "third missed pickup consequences", "relevant": ["7.2"], "kind": "vocab-mismatch", "split": "test"}
+{"id": "r36", "company": "borealis", "query": "unsafe incident how long to report", "relevant": ["3.3"], "kind": "paraphrase", "split": "dev"}
+{"id": "r37", "company": "borealis", "query": "night shift 10pm to 6am eligible for cab", "relevant": ["1.2"], "kind": "paraphrase", "split": "test"}
+{"id": "r38", "company": "borealis", "query": "guest in a night shift cab", "relevant": ["6.1"], "kind": "short", "split": "dev"}
+{"id": "r39", "company": "borealis", "query": "weekend airport trip", "relevant": ["4.1", "5.2"], "kind": "multi-section", "split": "test"}
+{"id": "r40", "company": "borealis", "query": "eligible for transport as contractor on night shift", "relevant": ["1.1", "1.2"], "kind": "multi-section", "split": "dev"}
+{"id": "r41", "company": "borealis", "query": "escrot 10pm", "relevant": ["3.1"], "kind": "typo", "split": "test"}
+{"id": "r42", "company": "borealis", "query": "cab price cap per trip", "relevant": ["5.3"], "kind": "short", "split": "dev"}
+{"id": "r43", "company": "cygnus", "query": "I live 3 km away can I get a cab", "relevant": ["1.1"], "kind": "situational", "split": "dev"}
+{"id": "r44", "company": "cygnus", "query": "my shift ends at 9:30 PM do I get a drop", "relevant": ["1.2"], "kind": "situational", "split": "test"}
+{"id": "r45", "company": "cygnus", "query": "by what time should I book for tomorrow morning", "relevant": ["3.1"], "kind": "paraphrase", "split": "dev"}
+{"id": "r46", "company": "cygnus", "query": "free cancellation deadline", "relevant": ["3.2"], "kind": "short", "split": "test"}
+{"id": "r47", "company": "cygnus", "query": "woman leaving at 9:15pm security in cab", "relevant": ["4.1"], "kind": "vocab-mismatch", "split": "dev"}
+{"id": "r48", "company": "cygnus", "query": "I'm a man leaving at 1am anyone travelling with me", "relevant": ["4.1"], "kind": "situational", "split": "test"}
+{"id": "r49", "company": "cygnus", "query": "when does the last scheduled drop leave", "relevant": ["4.2"], "kind": "paraphrase", "split": "dev"}
+{"id": "r50", "company": "cygnus", "query": "how do I report an incident through the app", "relevant": ["4.3"], "kind": "paraphrase", "split": "test"}
+{"id": "r51", "company": "cygnus", "query": "cab on Sunday", "relevant": ["5.1"], "kind": "short", "split": "dev"}
+{"id": "r52", "company": "cygnus", "query": "come in on a public holiday who approves transport", "relevant": ["5.2"], "kind": "paraphrase", "split": "test"}
+{"id": "r53", "company": "cygnus", "query": "emergency cab approval who", "relevant": ["6.1"], "kind": "short", "split": "dev"}
+{"id": "r54", "company": "cygnus", "query": "airport pickup approvals needed", "relevant": ["6.2"], "kind": "paraphrase", "split": "test"}
+{"id": "r55", "company": "cygnus", "query": "maximum fare for ad hoc ride", "relevant": ["6.3"], "kind": "vocab-mismatch", "split": "dev"}
+{"id": "r56", "company": "cygnus", "query": "can a visiting client's guest get a ride", "relevant": ["7.1"], "kind": "paraphrase", "split": "test"}
+{"id": "r57", "company": "cygnus", "query": "second no show cost", "relevant": ["8.1"], "kind": "short", "split": "dev"}
+{"id": "r58", "company": "cygnus", "query": "third no show", "relevant": ["8.1"], "kind": "short", "split": "test"}
+{"id": "r59", "company": "cygnus", "query": "need cab saturday evening", "relevant": ["5.1"], "kind": "short", "split": "dev"}
+{"id": "r60", "company": "cygnus", "query": "airport trip exceeds fare limit", "relevant": ["6.2", "6.3"], "kind": "multi-section", "split": "test"}
+{"id": "r61", "company": "cygnus", "query": "same day cab request", "relevant": ["3.1", "6.1"], "kind": "multi-section", "split": "dev"}
+{"id": "r62", "company": "cygnus", "query": "what if I miss my cab twice", "relevant": ["8.1"], "kind": "vocab-mismatch", "split": "test"}
+{"id": "r63", "company": "cygnus", "query": "night drop after midnight escort men", "relevant": ["4.1"], "kind": "situational", "split": "dev"}
