@@ -104,7 +104,7 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float, judge_model:
     from app.store import PolicyStore
 
     s = Settings(data_dir=tempfile.mkdtemp(), retrieval_mode=mode, llm_provider=llm_name)
-    emb, store = make_embedder(s.embedder), PolicyStore(s.data_dir)
+    emb, store = make_embedder(s.embedder), PolicyStore(s.data_dir, include_flagged=not s.quarantine_flagged)
     ing = Ingestor(store, emb, s.max_policy_bytes, s.embedder)
     from app.main import seed_if_empty
     seed_if_empty(s, store, ing)
@@ -190,6 +190,7 @@ def main():
     ap.add_argument("--llm", default=None, help="groq|gemini|fake (default: LLM_PROVIDER from .env, else fake)")
     ap.add_argument("--sleep", type=float, default=6.0, help="seconds between LLM cases: Groq free tier allows ~8000 tokens/min")
     ap.add_argument("--judge", default="", help="optional LLM-judge model on Groq, e.g. openai/gpt-oss-120b (extra calls, eval only)")
+    ap.add_argument("--only", default="", help="comma-separated id prefixes to run, e.g. inj,trap (red-team subset)")
     ap.add_argument("--no-write", action="store_true", help="do not update evalset.jsonl")
     args = ap.parse_args()
 
@@ -204,6 +205,9 @@ def main():
     cases = [json.loads(line) for line in EVALSET.read_text().splitlines() if line.strip()]
     for c in cases:
         c["actual"], c["pass"], c["notes"] = None, None, c["notes"].split(" || ")[0]
+    if args.only:  # subset run: never overwrite the full evalset file
+        cases = [c for c in cases if c["id"].startswith(tuple(args.only.split(",")))]
+        args.no_write = True
     RESULTS.mkdir(exist_ok=True)
     summaries, rows_by_mode = [], {}
     for mode in args.modes.split(","):

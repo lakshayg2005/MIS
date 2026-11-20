@@ -1,4 +1,7 @@
 import logging
+import threading
+import time
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -25,6 +28,25 @@ class AskBody(BaseModel):
     question: str = Field(min_length=1)
 
 
+class RateLimiter:
+    """Sliding window per user (JWT subject). Stops one user from burning the shared LLM quota (the free tier
+    allows ~10 questions/min in total). In memory: fine for one process; use Redis if you run several."""
+
+    def __init__(self, per_min: int):
+        self.per_min, self._hits, self._lock = per_min, defaultdict(deque), threading.Lock()
+
+    def allow(self, who: str) -> bool:
+        now = time.monotonic()
+        with self._lock:
+            q = self._hits[who]
+            while q and now - q[0] > 60:
+                q.popleft()
+            if len(q) >= self.per_min:
+                return False
+            q.append(now)
+            return True
+
+
 def seed_if_empty(settings, store, ingestor):
     """First start only: load each company's lowest-version file so `docker compose up` works with no setup."""
     for path in sorted(Path(settings.seed_dir).glob("*_v1.*")):
@@ -46,7 +68,7 @@ def create_app(settings: Settings | None = None, llm=None, embedder=None) -> Fas
     @asynccontextmanager
     async def lifespan(app):
         emb = embedder or make_embedder(settings.embedder)
-        store = PolicyStore(settings.data_dir)
+        store = PolicyStore(settings.data_dir, include_flagged=not settings.quarantine_flagged)
         for c in store.companies():
             store.purge_inactive(c)  # clear chunks left by a crash mid-ingest
         ingestor = Ingestor(store, emb, settings.max_policy_bytes, settings.embedder)
@@ -60,6 +82,7 @@ def create_app(settings: Settings | None = None, llm=None, embedder=None) -> Fas
 
     app = FastAPI(title="Commute Policy Assistant", lifespan=lifespan)
     app.state.settings = settings
+    app.state.limiter = RateLimiter(settings.rate_limit_per_min)
 
     @app.get("/health")
     def health():
@@ -90,6 +113,10 @@ def create_app(settings: Settings | None = None, llm=None, embedder=None) -> Fas
 
     @app.post("/ask")
     def ask(body: AskBody, request: Request, who: Principal = Depends(current_principal)):
+        if not request.app.state.limiter.allow(f"{who.company}:{who.subject}"):
+            return JSONResponse({"status": "error", "reason": "rate_limited", "citations": [],
+                                 "answer": "You are asking too quickly. Please wait a minute and try again."},
+                                status_code=429, headers={"Retry-After": "30"})
         q = body.question.strip()
         if not q or len(q) > settings.max_question_chars:
             raise HTTPException(400, f"question must be 1-{settings.max_question_chars} characters")

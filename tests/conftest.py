@@ -1,3 +1,5 @@
+import json
+import re
 import shutil
 from pathlib import Path
 
@@ -24,10 +26,14 @@ class ScriptedLLM:
         self.calls += 1
         if isinstance(item, Exception):
             raise item
+        if "__ECHO__" in item:  # a valid, grounded answer: the first sentence of excerpt [1], citing [1]
+            m = re.search(r"\[1\] .*?\n(.*?)(?=\n\[2\] |\n</policy_excerpts>)", user, re.S)
+            first = m.group(1).strip().split(". ")[0].rstrip(".") + "." if m else "x"
+            item = item.replace("__ECHO__", json.dumps({"status": "answered", "answer": first, "citations": [1]}))
         return item
 
 
-ANSWER_1 = '{"status":"answered","answer":"See the cited section.","citations":[1]}'
+ANSWER_1 = "__ECHO__"
 
 
 @pytest.fixture(scope="session")

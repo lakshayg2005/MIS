@@ -67,7 +67,7 @@ def test_never_more_than_two_llm_calls_and_three_citations(make_client, tok):
 
 
 def test_json_in_code_fence_is_accepted(make_client, tok):
-    j = ask(make_client(ScriptedLLM("```json\n" + ANSWER_1 + "\n```")), tok).json()
+    j = ask(make_client(ScriptedLLM("```json\n__ECHO__\n```")), tok).json()
     assert j["status"] == "answered"
 
 
@@ -105,7 +105,8 @@ def test_prompt_injection_in_user_question_cannot_cross_tenants(make_client, tok
     assert "Borealis" not in excerpts and "Cygnus" not in excerpts and "Rs 1,000" not in excerpts
 
 
-def test_injected_document_text_is_data_not_instructions(make_client, tok):
+def test_injected_document_text_is_data_not_instructions(make_client, tok, settings):
+    settings.quarantine_flagged = False  # red-team mode: let the injected section reach the model and check it is fenced
     seen = {}
 
     class Spy(ScriptedLLM):

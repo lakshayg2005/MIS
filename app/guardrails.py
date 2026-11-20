@@ -7,6 +7,8 @@ memory). We refuse to show such an answer.
 """
 import re
 
+MIN_SUPPORT = 0.35  # answers whose wording is <35 % from the cited text are rejected (lowest real answer in the eval: 0.545)
+
 _NUM = re.compile(r"\d[\d,]*(?:[:.]\d+)?")
 _WORD = re.compile(r"[a-z]{4,}")
 _STOP = set("this that with from your have will which their there been into than then them they when what where "

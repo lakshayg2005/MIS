@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
 
-from .guardrails import ungrounded_numbers
+from .guardrails import MIN_SUPPORT, support_ratio, ungrounded_numbers
 from .llm import LLMError
 from .retrieval import IsolationError
 
@@ -97,6 +97,8 @@ def parse_model_output(raw: str, n_hits: int, other_companies: list, hits: list 
         bad = ungrounded_numbers(answer, [hits[i - 1]["text"] for i in idx[:3]], question)
         if bad:
             raise BadModelOutput(f"ungrounded numbers {sorted(bad)}")
+        if support_ratio(answer, [hits[i - 1]["text"] for i in idx[:3]], question) < MIN_SUPPORT:
+            raise BadModelOutput("answer is not built from the cited text")  # off-topic / free-form text from the model
     return "answered", answer.strip(), idx[:3]
 
 

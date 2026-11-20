@@ -20,7 +20,8 @@ def valid_company(c) -> bool:
 
 
 class PolicyStore:
-    def __init__(self, data_dir: str):
+    def __init__(self, data_dir: str, include_flagged: bool = False):
+        self.include_flagged = include_flagged  # False = quarantine: injection-flagged sections are never served
         root = Path(data_dir)
         root.mkdir(parents=True, exist_ok=True)
         self._db_path = str(root / "registry.db")
@@ -98,8 +99,11 @@ class PolicyStore:
         self._collection(company).delete(where={"version": {"$ne": act[0]}})
 
     # ---- read path ------------------------------------------------------------------------
+    def _where(self, version):
+        return {"version": version} if self.include_flagged else {"$and": [{"version": version}, {"suspicious": False}]}
+
     def get_chunks(self, company, version) -> list:
-        res = self._collection(company).get(where={"version": version}, include=["documents", "metadatas"])
+        res = self._collection(company).get(where=self._where(version), include=["documents", "metadatas"])
         return [{"id": i, "text": d, **m} for i, d, m in zip(res["ids"], res["documents"], res["metadatas"])]
 
     def query(self, company, version, embedding, k) -> list:
@@ -107,7 +111,7 @@ class PolicyStore:
         n = col.count()
         if n == 0:
             return []
-        res = col.query(query_embeddings=[embedding], n_results=min(k, n), where={"version": version},
+        res = col.query(query_embeddings=[embedding], n_results=min(k, n), where=self._where(version),
                         include=["documents", "metadatas", "distances"])
         return [
             {"id": i, "text": d, "sim": 1.0 - dist, **m}
