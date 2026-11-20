@@ -5,122 +5,215 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Commute Policy Assistant</title>
 <style>
-  :root { --bg:#f6f7f9; --card:#fff; --ink:#1b2330; --muted:#5d6878; --line:#dde2ea; --brand:#1f5fd6;
-          --ok:#0f7b45; --okbg:#e8f6ee; --warn:#8a5a00; --warnbg:#fff4dc; --err:#a12626; --errbg:#fdeaea; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#12161c; --card:#1b212b; --ink:#e9edf3; --muted:#9aa6b8; --line:#2c3441;
-          --brand:#6ea1ff; --ok:#5fd394; --okbg:#14291f; --warn:#f0bf62; --warnbg:#2d2410; --err:#ff8c8c; --errbg:#321616; } }
+  :root { --bg:#f4f6fa; --card:#fff; --ink:#18212f; --muted:#5b6678; --line:#dbe1ea; --brand:#1f5fd6; --brand-ink:#fff;
+          --user:#e6efff; --ok:#0f7b45; --warn:#8a5a00; --err:#a12626; --warnbg:#fff4dc; --errbg:#fdeaea; --okbg:#e8f6ee; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f131a; --card:#171d27; --ink:#e8edf5; --muted:#97a3b6; --line:#2a3342;
+          --brand:#6ea1ff; --brand-ink:#0b1220; --user:#1c2a45; --ok:#5fd394; --warn:#f0bf62; --err:#ff8c8c; --warnbg:#2b2310; --errbg:#2f1717; --okbg:#12281d; } }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,sans-serif; }
-  main { max-width:760px; margin:0 auto; padding:24px 16px 64px; }
-  h1 { font-size:1.35rem; margin:0 0 4px; }
-  .sub { color:var(--muted); margin:0 0 20px; font-size:.95rem; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
-  label { font-weight:600; font-size:.9rem; display:block; margin-bottom:6px; }
-  select, textarea, button { font:inherit; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); }
-  select { padding:8px 10px; width:100%; }
-  textarea { width:100%; padding:10px; resize:vertical; min-height:72px; }
-  button.primary { background:var(--brand); color:#fff; border:0; padding:10px 18px; font-weight:600; cursor:pointer; }
-  button.primary:disabled { opacity:.6; cursor:wait; }
-  .chips { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 14px; }
-  .chip { padding:5px 10px; font-size:.85rem; cursor:pointer; background:transparent; }
-  .badge { display:inline-block; font-size:.8rem; padding:2px 8px; border-radius:99px; background:var(--okbg); color:var(--ok); }
-  .row { display:flex; gap:12px; align-items:end; flex-wrap:wrap; }
-  .row > div { flex:1; min-width:220px; }
-  .answer { border-left:5px solid var(--ok); } .answer.nc { border-left-color:var(--warn); } .answer.err { border-left-color:var(--err); }
-  .tag { font-weight:700; font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; }
-  .answer .tag { color:var(--ok); } .answer.nc .tag { color:var(--warn); } .answer.err .tag { color:var(--err); }
-  .cit { border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-top:10px; }
-  .cit b { display:block; } .cit small { color:var(--muted); }
-  details summary { cursor:pointer; color:var(--brand); font-size:.9rem; margin-top:6px; }
-  details p { white-space:pre-wrap; margin:6px 0 0; font-size:.92rem; }
-  .meta { color:var(--muted); font-size:.8rem; margin-top:12px; }
-  footer { color:var(--muted); font-size:.8rem; }
+  html,body { height:100%; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif; display:flex; flex-direction:column; }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:12px 16px; }
+  .bar { max-width:820px; margin:0 auto; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .logo { font-weight:700; font-size:1.05rem; margin-right:auto; }
+  .logo small { display:block; font-weight:400; color:var(--muted); font-size:.78rem; }
+  select, button, textarea { font:inherit; color:var(--ink); }
+  select { padding:7px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); }
+  .ghost { background:transparent; border:1px solid var(--line); border-radius:8px; padding:7px 12px; cursor:pointer; }
+  .ghost:hover { border-color:var(--brand); color:var(--brand); }
+  .policy { font-size:.78rem; color:var(--muted); max-width:820px; margin:6px auto 0; }
+  main { flex:1; overflow-y:auto; padding:18px 16px 8px; }
+  .thread { max-width:820px; margin:0 auto; display:flex; flex-direction:column; gap:14px; }
+  .empty { text-align:center; color:var(--muted); margin:36px 0 8px; }
+  .empty h2 { color:var(--ink); font-size:1.15rem; margin:0 0 6px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:14px; }
+  .chip { background:var(--card); border:1px solid var(--line); border-radius:99px; padding:6px 12px; font-size:.88rem; cursor:pointer; }
+  .chip:hover { border-color:var(--brand); }
+  .user { align-self:flex-end; background:var(--user); border-radius:14px 14px 4px 14px; padding:9px 14px; max-width:85%; white-space:pre-wrap; }
+  .bot { align-self:flex-start; width:100%; background:var(--card); border:1px solid var(--line); border-left:5px solid var(--ok); border-radius:12px; padding:14px 16px; }
+  .bot.nc { border-left-color:var(--warn); } .bot.err { border-left-color:var(--err); }
+  .tag { font-size:.74rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ok); margin-bottom:4px; }
+  .bot.nc .tag { color:var(--warn); } .bot.err .tag { color:var(--err); }
+  .answer { margin:0; white-space:pre-wrap; }
+  .stage { color:var(--muted); display:flex; align-items:center; gap:10px; }
+  .dots span { display:inline-block; width:6px; height:6px; margin-right:3px; border-radius:50%; background:var(--brand); animation:b 1s infinite ease-in-out; }
+  .dots span:nth-child(2) { animation-delay:.15s } .dots span:nth-child(3) { animation-delay:.3s }
+  @keyframes b { 0%,80%,100% { opacity:.25; transform:scale(.8) } 40% { opacity:1; transform:scale(1.1) } }
+  .secs { font-size:.82rem; color:var(--muted); margin-top:4px; }
+  .cits { margin-top:12px; display:grid; gap:8px; animation:fade .4s ease; }
+  @keyframes fade { from { opacity:0; transform:translateY(4px) } to { opacity:1; transform:none } }
+  .cit { border:1px solid var(--line); border-radius:10px; padding:9px 12px; background:var(--bg); }
+  .cit b { display:block; font-size:.9rem; } .cit small { color:var(--muted); }
+  details summary { cursor:pointer; color:var(--brand); font-size:.86rem; margin-top:4px; }
+  details p { margin:6px 0 0; font-size:.9rem; white-space:pre-wrap; }
+  .actions { margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
+  .actions button { font-size:.8rem; padding:4px 10px; }
+  .meta { color:var(--muted); font-size:.76rem; margin-top:8px; }
+  .composer { background:var(--card); border-top:1px solid var(--line); padding:10px 16px 14px; }
+  .box { max-width:820px; margin:0 auto; display:flex; gap:10px; align-items:flex-end; }
+  textarea { flex:1; resize:none; max-height:140px; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:var(--bg); line-height:1.4; }
+  textarea:focus, select:focus, button:focus-visible { outline:2px solid var(--brand); outline-offset:1px; }
+  .send { background:var(--brand); color:var(--brand-ink); border:0; border-radius:12px; padding:10px 18px; font-weight:600; cursor:pointer; }
+  .send:disabled { opacity:.55; cursor:not-allowed; }
+  .hint { max-width:820px; margin:6px auto 0; color:var(--muted); font-size:.75rem; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
 </style>
 </head>
 <body>
-<main>
-  <h1>Commute Policy Assistant</h1>
-  <p class="sub">Ask about your company's transport policy. Every answer shows the policy section it came from.</p>
-
-  <div class="card">
-    <div class="row">
-      <div>
-        <label for="company">Demo sign-in (stands in for your company login)</label>
-        <select id="company">
-          <option value="acme">Acme Technologies employee</option>
-          <option value="borealis">Borealis Systems employee</option>
-          <option value="cygnus">Cygnus Labs employee</option>
-        </select>
-      </div>
-      <div id="who" class="meta"></div>
-    </div>
+<header>
+  <div class="bar">
+    <div class="logo">Commute Policy Assistant<small>Answers come only from your company's current transport policy</small></div>
+    <label class="sr" for="company" style="position:absolute;left:-9999px">Demo sign-in</label>
+    <select id="company" title="Demo sign-in: stands in for your company login">
+      <option value="acme">Acme Technologies employee</option>
+      <option value="borealis">Borealis Systems employee</option>
+      <option value="cygnus">Cygnus Labs employee</option>
+    </select>
+    <button class="ghost" id="newchat" type="button">New chat</button>
   </div>
+  <div class="policy" id="policy"></div>
+</header>
 
-  <div class="card">
-    <label for="q">Your question</label>
-    <textarea id="q" maxlength="500" placeholder="e.g. Am I eligible for a 9:30 PM drop?"></textarea>
-    <div class="chips" id="chips"></div>
-    <button class="primary" id="ask">Ask</button>
+<main id="main"><div class="thread" id="thread"></div></main>
+
+<div class="composer">
+  <div class="box">
+    <textarea id="q" rows="1" maxlength="500" placeholder="Ask about your transport policy... (Enter to send, Shift+Enter for a new line)" aria-label="Your question"></textarea>
+    <button class="send" id="send" type="button">Ask</button>
   </div>
+  <div class="hint"><span>Each question is answered on its own: earlier messages are not sent to the assistant. This chat is kept only in this browser tab.</span><span id="count">0 / 500</span></div>
+</div>
 
-  <div id="out" aria-live="polite"></div>
-  <footer>Demo page: the sign-in above is only available when the server runs with DEMO_MODE=1. The API itself requires a signed JWT.</footer>
-</main>
 <script>
 const $ = (id) => document.getElementById(id);
 const EXAMPLES = ["After what time is a security escort mandatory for women on drops?", "Can I book a cab on Saturday?",
   "Who approves an airport trip?", "What happens if I no-show twice?", "Are pets allowed in the cab?"];
-let token = null;
+const KEY = "commute-chat-v1";
+let token = null, busy = false, turns = [];
 
-function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+const save = () => { try { sessionStorage.setItem(KEY, JSON.stringify({company: $("company").value, turns})); } catch {} };
+const scroll = () => { $("main").scrollTop = $("main").scrollHeight; };
 
 async function signIn() {
-  token = null; $("who").textContent = "Signing in...";
+  token = null; $("policy").textContent = "Signing in...";
   try {
     const r = await fetch("/demo/token", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({company: $("company").value})});
     if (!r.ok) throw new Error();
     token = (await r.json()).token;
     const me = await (await fetch("/me", {headers:{Authorization:"Bearer " + token}})).json();
-    $("who").textContent = me.policy ? "Answering from: " + me.policy.title + " (version " + me.policy.version + ")" : "No policy loaded for this company";
-  } catch { $("who").textContent = "Could not sign in. Is the server running with DEMO_MODE=1?"; }
+    $("policy").textContent = me.policy ? "Answering from: " + me.policy.title + " · version " + me.policy.version : "No policy is loaded for this company.";
+  } catch { $("policy").textContent = "Could not sign in. Is the server running with DEMO_MODE=1?"; }
 }
 
-function show(kind, title, text, data) {
-  const out = $("out"); out.replaceChildren();
-  const card = el("div", "card answer" + (kind === "nc" ? " nc" : kind === "err" ? " err" : ""));
-  card.append(el("div", "tag", title), el("p", "", text));
-  (data && data.citations || []).forEach((c) => {
+function renderEmpty() {
+  const box = el("div", "empty"); box.append(el("h2", "", "What would you like to know?"), el("div", "", "Try one of these, or type your own question."));
+  const chips = el("div", "chips");
+  EXAMPLES.forEach((t) => { const b = el("button", "chip", t); b.type = "button"; b.onclick = () => { $("q").value = t; updateCount(); send(); }; chips.append(b); });
+  box.append(chips); $("thread").append(box);
+}
+
+function citations(data) {
+  const wrap = el("div", "cits");
+  (data.citations || []).forEach((c) => {
     const box = el("div", "cit");
     box.append(el("b", "", c.document), el("small", "", "Version " + c.version + " · Section " + c.section + " – " + c.title + (c.page ? " · page " + c.page : "")));
-    const d = el("details"); d.append(el("summary", "", "Show the policy text"), el("p", "", c.excerpt)); box.append(d);
-    card.append(box);
+    const d = el("details"); d.append(el("summary", "", "Show the exact policy text"), el("p", "", c.excerpt)); box.append(d); wrap.append(box);
   });
-  if (data && data.latency_ms !== undefined) card.append(el("div", "meta", "Answered in " + (data.latency_ms / 1000).toFixed(1) + " s"));
-  out.append(card);
+  return wrap;
 }
 
-async function ask() {
+function view(data, status) {
+  if (status === 429) return ["err", "Slow down a little", data.answer || "Please wait a minute and try again."];
+  if (data.status === "not_covered") return ["nc", "The policy does not say", data.answer];
+  if (data.status === "error" || status >= 400) return ["err", "Please try again", data.answer || "Something went wrong. Please try again in a moment."];
+  return ["ok", "From your company's policy", data.answer];
+}
+
+// Fill an assistant card with the FINAL, already-validated answer. animate = reveal word by word (the text is already checked).
+function fillBot(card, q, data, status, animate) {
+  const [kind, tag, text] = view(data, status);
+  card.className = "bot" + (kind === "nc" ? " nc" : kind === "err" ? " err" : "");
+  card.replaceChildren(el("div", "tag", tag));
+  const p = el("p", "answer"); card.append(p);
+  const finish = () => {
+    p.textContent = text;
+    if ((data.citations || []).length) card.append(citations(data));
+    const act = el("div", "actions");
+    if (kind === "ok") { const cp = el("button", "ghost", "Copy answer"); cp.type = "button"; cp.onclick = () => { navigator.clipboard && navigator.clipboard.writeText(text); cp.textContent = "Copied"; }; act.append(cp); }
+    if (kind === "err") { const rt = el("button", "ghost", "Try again"); rt.type = "button"; rt.onclick = () => { $("q").value = q; send(); }; act.append(rt); }
+    if (act.childNodes.length) card.append(act);
+    if (data.latency_ms !== undefined) card.append(el("div", "meta", "Answered in " + (data.latency_ms / 1000).toFixed(1) + " s"));
+    scroll();
+  };
+  if (!animate || kind !== "ok") { finish(); return; }
+  const words = text.split(" "); let i = 0; card.onclick = () => { i = words.length; };
+  const tick = () => { i += 1; p.textContent = words.slice(0, i).join(" "); scroll(); if (i < words.length) setTimeout(tick, 28); else { card.onclick = null; finish(); } };
+  tick();
+}
+
+function renderTurn(t) {
+  $("thread").append(el("div", "user", t.q));
+  const card = el("div", "bot"); $("thread").append(card); fillBot(card, t.q, t.data, t.status, false);
+}
+
+function renderAll() {
+  $("thread").replaceChildren();
+  if (!turns.length) renderEmpty(); else turns.forEach(renderTurn);
+  scroll();
+}
+
+function stageLine(card, text, detail) {
+  card.replaceChildren();
+  const s = el("div", "stage"); const d = el("span", "dots"); d.append(el("span"), el("span"), el("span")); s.append(d, el("span", "", text)); card.append(s);
+  if (detail) card.append(el("div", "secs", detail));
+  scroll();
+}
+
+async function send() {
   const q = $("q").value.trim();
-  if (!q) { show("err", "Type a question", "Please type your question first."); return; }
+  if (!q || busy) return;
   if (!token) await signIn();
-  $("ask").disabled = true; $("ask").textContent = "Checking the policy...";
+  busy = true; $("send").disabled = true; $("q").value = ""; updateCount();
+  if (!turns.length) $("thread").replaceChildren();
+  $("thread").append(el("div", "user", q));
+  const card = el("div", "bot"); $("thread").append(card); stageLine(card, "Looking through your policy...");
+  let data = null, status = 200;
   try {
-    const r = await fetch("/ask", {method:"POST", headers:{"Content-Type":"application/json", Authorization:"Bearer " + token}, body: JSON.stringify({question: q})});
-    if (r.status === 401) { token = null; show("err", "Session expired", "Please press Ask again."); return; }
-    const data = await r.json().catch(() => ({}));
-    if (r.status === 400) show("err", "Check your question", "Questions must be 1 to 500 characters.");
-    else if (r.status === 503 || !r.ok) show("err", "Please try again", data.answer || "Something went wrong. Please try again in a moment.", data);
-    else if (data.status === "not_covered") show("nc", "Policy does not say", data.answer, data);
-    else show("ok", "Answer from your policy", data.answer, data);
-  } catch { show("err", "Please try again", "Could not reach the assistant. Check your connection and try again."); }
-  finally { $("ask").disabled = false; $("ask").textContent = "Ask"; }
+    const r = await fetch("/ask/stream", {method:"POST", headers:{"Content-Type":"application/json", Authorization:"Bearer " + token}, body: JSON.stringify({question: q})});
+    status = r.status;
+    if (r.status === 401) { token = null; data = {status:"error", answer:"Your session expired. Please ask again."}; }
+    else if (r.status === 400) data = {status:"error", answer:"Questions must be 1 to 500 characters."};
+    else if (!r.ok) data = await r.json().catch(() => ({status:"error"}));
+    else {
+      const reader = r.body.getReader(), dec = new TextDecoder(); let buf = "";
+      for (;;) {
+        const {value, done} = await reader.read(); if (done) break;
+        buf += dec.decode(value, {stream:true});
+        let idx;
+        while ((idx = buf.indexOf("\n\n")) >= 0) {
+          const raw = buf.slice(0, idx); buf = buf.slice(idx + 2);
+          const ev = (raw.match(/^event: (.*)$/m) || [])[1], payload = JSON.parse((raw.match(/^data: (.*)$/m) || [,"{}"])[1]);
+          if (ev === "stage" && payload.step === "drafting") stageLine(card, "Found the relevant sections. Writing your answer...", "Reading: " + payload.sections.map((s) => "§" + s.section + " " + s.title).join(" · "));
+          else if (ev === "final") data = payload;
+        }
+      }
+      if (!data) data = {status:"error", answer:"The connection was interrupted. Please try again."};
+    }
+  } catch { data = {status:"error", answer:"Could not reach the assistant. Check your connection and try again."}; }
+  turns.push({q, data, status}); save();
+  fillBot(card, q, data, status, true);
+  busy = false; $("send").disabled = false; $("q").focus();
 }
 
-EXAMPLES.forEach((t) => { const b = el("button", "chip", t); b.type = "button"; b.onclick = () => { $("q").value = t; $("q").focus(); }; $("chips").append(b); });
-$("ask").onclick = ask;
-$("q").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) ask(); });
-$("company").onchange = () => { $("out").replaceChildren(); signIn(); };
-signIn();
+function updateCount() { $("count").textContent = $("q").value.length + " / 500"; $("q").style.height = "auto"; $("q").style.height = Math.min($("q").scrollHeight, 140) + "px"; }
+
+$("send").onclick = send;
+$("q").addEventListener("input", updateCount);
+$("q").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
+$("newchat").onclick = () => { turns = []; save(); renderAll(); $("q").focus(); };
+$("company").onchange = () => { turns = []; save(); renderAll(); signIn(); };  // a different company = a different tenant: never carry a chat across
+
+try { const s = JSON.parse(sessionStorage.getItem(KEY) || "null"); if (s && s.turns) { $("company").value = s.company; turns = s.turns; } } catch {}
+renderAll(); signIn();
 </script>
 </body>
 </html>
