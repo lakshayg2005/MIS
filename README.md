@@ -29,7 +29,8 @@ docker compose run --rm api python -m eval.groundedness                # grounde
 | Offline evaluation (retrieval metrics are real; answer text is a crude stand-in) | `python -m eval.run --llm fake --no-write` |
 | Latency over HTTP | `python -m eval.bench --base http://localhost:8000` |
 | Get a token (mock identity provider) | `python -m scripts.issue_token acme` / `... borealis admin` |
-| Upload a new policy version | `python -m scripts.ingest_policy acme data/policies/acme_v2.pdf` |
+| Upload a new policy version (as the company's admin), no Python install needed | `docker compose exec api python -m scripts.ingest_policy acme data/policies/acme_v2.pdf http://localhost:8000` |
+| Same, from a local Python environment | `python -m scripts.ingest_policy acme data/policies/acme_v2.pdf` |
 | Sync a whole folder (uploads only new/changed files; `--watch 30` to poll) | `python -m scripts.sync_policies data/policies` |
 
 Running without Docker: `pip install -r requirements.txt`, then
