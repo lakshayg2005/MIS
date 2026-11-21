@@ -1,11 +1,12 @@
 {
- "requests": 60,
+ "requests": 45,
  "statuses": {
-  "answered": 53,
-  "not_covered": 7
+  "answered": 31,
+  "not_covered": 9,
+  "smalltalk": 5
  },
- "p50_ms": 633,
- "p95_ms": 884,
- "max_ms": 957,
+ "p50_ms": 620,
+ "p95_ms": 863,
+ "max_ms": 1229,
  "target_p95_ms": 3000
 }

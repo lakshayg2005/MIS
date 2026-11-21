@@ -275,3 +275,6 @@ R@k = recall@k (share of the labelled sections found in the top k), MRR = mean r
 
 ## 21. Limits of this experiment
 63 queries (30 test) written by the same person who wrote the policies; a one-query difference is 1.6 to 3.3 points, so gaps of 0.03 to 0.05 are within noise, and only the larger effects (reranking, the embedding speedup, HyDE hurting) should be trusted. No confidence intervals were computed. Policies are short (about 15 chunks per company); techniques such as hybrid search, doc2query and sentence chunking may behave differently on 30-page documents. The LLM techniques ran on one model (`gpt-oss-20b`).
+
+**HTTP benchmark of the shipped pipeline** (Docker container, real Groq, fast MiniLM + rerank, `python -m eval.bench --n 45`): 45 requests, 0 errors (31 answered, 9 not covered, 5 small talk), **p50 620 ms, p95 863 ms, max 1,229 ms** (target p95 < 3 s). Raw: `results/bench.json`.
+**Reliability note:** during this work the machine's network to Groq and Docker Hub intermittently reset connections. A connection that never opens is now retried once (safe: nothing reached the model); everything else keeps the "no retry, clear try-again" behaviour.
