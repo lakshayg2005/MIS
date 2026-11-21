@@ -108,7 +108,12 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float, judge_model:
     ing = Ingestor(store, emb, s.max_policy_bytes, s.embedder)
     from app.main import seed_if_empty
     seed_if_empty(s, store, ing)
-    retriever = Retriever(store, emb, mode, s.top_k)
+    reranker = None
+    if s.rerank:  # same pipeline the app ships: question -> vector search -> cross-encoder rerank -> top 3
+        from app.rerank import CrossEncoderReranker
+        reranker = CrossEncoderReranker()
+        reranker.rerank("warm", [{"title": "a", "text": "b"}, {"title": "c", "text": "d"}])
+    retriever = Retriever(store, emb, mode, s.top_k, reranker=reranker)
     svc = QuestionService(s, store, retriever, make_llm(llm_name, s.llm_api_key, s.llm_model))
     emb.embed(["warm up"])
     judge_llm = make_llm("groq", s.llm_api_key, judge_model) if judge_model and llm_name != "fake" else None

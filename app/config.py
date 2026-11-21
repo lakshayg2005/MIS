@@ -23,7 +23,10 @@ class Settings:
     # --- retrieval ---
     embedder: str = field(default_factory=lambda: os.getenv("EMBEDDER", "minilm"))  # minilm | hash
     retrieval_mode: str = field(default_factory=lambda: os.getenv("RETRIEVAL_MODE", "vector"))  # vector | hybrid
-    rerank: bool = field(default_factory=lambda: os.getenv("RERANK", "0") == "1")  # cross-encoder reranking of the candidates
+    rerank: bool = field(default_factory=lambda: os.getenv("RERANK", "1") == "1")  # cross-encoder reranking of the top candidates (measured: +0.10 recall@1)
+    query_rewrite: bool = field(default_factory=lambda: os.getenv("QUERY_REWRITE", "0") == "1")  # LLM rewrites the question first: +1 LLM call, +~0.5 s (off: measured no better than reranking)
+    expand_questions: bool = field(default_factory=lambda: os.getenv("EXPAND_QUESTIONS", "0") == "1")  # doc2query at ingestion (LLM writes likely questions per chunk)
+    chunking: str = field(default_factory=lambda: os.getenv("CHUNKING", "section"))  # section (default) | sentence | heading (both measured worse)
     top_k: int = 3  # chunks retrieved AND shown to the LLM: also the brief's cap of 3 cited chunks, and fewer tokens per call
     min_similarity: float = field(default_factory=lambda: _f("MIN_SIMILARITY", 0.25))  # below this: "not covered", no LLM call
     # --- llm ---

@@ -1,0 +1,317 @@
+{
+ "4327f6d742c49031312049935726b11367b376279f506bdb2a2b9d6c14839376": [
+  "Do I get office transport if I'm L3?",
+  "What if I'm L2 but live 10km away?",
+  "Can interns use the company van?",
+  "Is the 8km rule for L1/L2 only?",
+  "transport eligibility grade"
+ ],
+ "c4f3c39a2f32a324b9325fe51f0c8910db6091cc0024fb68e82ce4ebd2f400c1": [
+  "Do I get a ride if my shift starts at 5:30am?",
+  "What if my shift ends at 9pm, can I still use transport?",
+  "Is the transport available for all grades if I work late?",
+  "Can I use the company transport if I start before 6am?",
+  "shift-early-ride"
+ ],
+ "83c75d8dd76eeae42be095d3d05ec144aaf227406a1b1b4492a8f40e82a892a2": [
+  "When do I have to book my cab for work?",
+  "Can I book a shuttle last minute before my shift?",
+  "What happens if I book a ride 2 hours before my shift starts?",
+  "Do I need approval if I book a cab 3 hours before my shift?",
+  "cab-booking-4hrs"
+ ],
+ "b05e1210ba42674ee67c56aaf5cc488407c39273d57a95290b016127eaae8133": [
+  "Can I cancel my ride for free if I do it 2 hours before?",
+  "What happens if I cancel after the 2\u2011hour window?",
+  "Is there a fee if I cancel late?",
+  "Do I get a refund if I cancel 30 minutes before?",
+  "cancellation policy"
+ ],
+ "2a9020dbed43d76ef773a02896654b63684d95d49e49e8f88a43981af6ed077d": [
+  "Do I need a security escort if I\u2019m going out after 8pm?",
+  "Will the company give me a guard automatically for my night drop?",
+  "Can I skip the escort for a late\u2011night trip?",
+  "How does the escort thing work for women after 8pm?",
+  "escort? 8pm+?"
+ ],
+ "91788251a55caffc9553ff3d16e2cb2aac6555a7996e31bffb9bc4f63f0040a3": [
+  "When does the last night drop leave the office?",
+  "Do we get rides after midnight or only on set routes?",
+  "What time can I catch a night drop from the office?",
+  "Is there a 1am cutoff for the last night bus?",
+  "night drop timings"
+ ],
+ "e87ca4ea0edb8deb2e6121af848e85bcb8854c4b660aaf06d44ac8a31491abad": [
+  "What do I do if I spot a safety issue while I'm on the bus?",
+  "How fast do I have to call the transport desk if something feels unsafe?",
+  "Can the driver just change the route on the fly?",
+  "Who do I contact if I see a safety concern during my trip?",
+  "safety report helpline"
+ ],
+ "dc4d0f36fd60539c748fc65444b2805ae8b72264dcc809f5a287a2e06fe0ef73": [
+  "Can I get a ride on the weekend if I ask my manager?",
+  "Do I need to tell my manager 24 hours before the weekend trip?",
+  "Is weekend transport only on Sat and Sun?",
+  "What if I forget to ask 24 hours ahead?",
+  "weekend transport approval"
+ ],
+ "7f78cfbcf26130ef57ca458459b5d09a38e74558e034b7b1caa56b921cb42bb3": [
+  "Do I get a ride on holidays if I'm not on the critical roster?",
+  "What if my shift falls on a public holiday\u2014will the company still drive me?",
+  "Can I use the company transport on a holiday if I'm not in the support list?",
+  "Is transport available on public holidays for everyone?",
+  "public holiday transport critical roster"
+ ],
+ "e6f21d9ca7aabf92b2742f6e244f46fa6f8c56769f786c13e6728e6ad9b6b5b6": [
+  "Who can give me the green light for a last\u2011minute trip?",
+  "Do I need my boss to sign off before I hit the road?",
+  "Can I just book a trip on the fly and still get it approved?",
+  "What\u2019s the process if I need to travel outside the normal schedule?",
+  "ad\u2011hoc trip approval"
+ ],
+ "f6a4e5e2d80fb57f36e50eef21632ba4700025cc2335fc7358df2726e088b43f": [
+  "Can I just get a pickup from the airport without the boss saying yes?",
+  "Who actually has to give the green light for me to fly in and out?",
+  "Is the manager allowed to approve my airport trip or do I need the department head?",
+  "Do I need to get the department head's OK before I can be picked up at the airport?",
+  "airport trip approval"
+ ],
+ "d16c42304d789ba9b752e17f256ac9be779025d82ee87aae3e2711d119eaaf80": [
+  "How much can I spend on a cab before I need approval?",
+  "What's the max fare for a single cab ride?",
+  "Do I need a finance sign\u2011off if the cab costs more than 1500?",
+  "Is there a limit on ad\u2011hoc cab expenses?",
+  "cab cap 1500?"
+ ],
+ "7468aa62ffa1e8e562c3fc43a84b5da4856b4742032b1dde9e0292691bb9917a": [
+  "Can I bring my friend on the company shuttle?",
+  "Do I need a VP's OK to drop a client\u2019s guest in a cab?",
+  "Is it okay to let a client\u2019s guest ride the employee cab?",
+  "What\u2019s the rule about guests on company transport?",
+  "guest transport approval"
+ ],
+ "be6a83a659ea73d25c63787b76f430433a5e0871e4d33e06fb3616da2d5fdaea": [
+  "What happens if I miss a ride once this month?",
+  "Do I get fined if I skip a trip twice in a month?",
+  "Is there a warning for my first no\u2011show?",
+  "How much do I pay for a second no\u2011show?",
+  "no\u2011show penalty?"
+ ],
+ "dd6d968777b8ed2e55cca66c1e3c8602658a4cd85195e8fd8c48e822859a98bc": [
+  "How many times can I miss a ride before they stop giving me transport?",
+  "What happens if I skip 5 rides in one month?",
+  "Do I lose my bus pass after 5 no-shows?",
+  "Can I still use the shuttle if I\u2019ve missed 5 times this month?",
+  "no-show limit?"
+ ],
+ "da71475cfe557165911a0c55b9add859a97b41ff79a82bccf456c5267eee7965": [
+  "Do I qualify for the company bus if I live 20 km from the office?",
+  "What if I'm a contractor and live within 25 km\u2014can I use the transport?",
+  "Do I need a manager's note to ride the shuttle as a contract worker?",
+  "Is the 25 km rule the same for all grades or just for permanent staff?",
+  "distance\u2011eligible?"
+ ],
+ "537ac4243bcf4658ec1755df5ab47ea2e632c7dba2c26a9b30818de189079426": [
+  "Do night shift workers get rides to and from work?",
+  "Can I use the company drop\u2011off if I work 10\u20116 AM?",
+  "Is the night shift always eligible for transport?",
+  "What about the 10pm\u20116am crew \u2013 do they get rides?",
+  "night shift transport?"
+ ],
+ "5232bec3bb2a36b226fc651befd4609aa420041079e7e13c8861a6ebfd8bf359": [
+  "When do I have to book the company cab?",
+  "Can I book a ride last minute if I need it?",
+  "What happens if I forget to book 2 hours ahead?",
+  "Do I get a backup car if I miss the cut\u2011off?",
+  "cutoff time?"
+ ],
+ "53aa3fe74b0655b755d1259672411e3d1375c0c65bb3bdd788c661adc527e833": [
+  "Can I cancel my ride an hour before it starts?",
+  "What happens if I cancel 30 minutes before the trip?",
+  "Is there a fee if I cancel late?",
+  "How do I cancel my booking?",
+  "cancel 1hr before?"
+ ],
+ "7bf469696c13d462c3b73edcc6cd1b190cbce8eac3e7ae5c141877b128cef5af": [
+  "Do I need a security escort if I\u2019m dropping off a woman after 10pm?",
+  "What about drops before 10pm\u2014do we still need an escort?",
+  "Is the escort rule only for women or for everyone?",
+  "Can I skip the escort if it\u2019s a quick drop after 10?",
+  "escort? 10pm drop rule"
+ ],
+ "40eb75e8891041432cf41fde421826d1ccb86d97b0f73f6958cfc2e135a2dd41": [
+  "When do night drops happen on shared routes?",
+  "Do I have to be the last person on a shared route if there's no escort?",
+  "Can a woman employee be the last drop on a shared route?",
+  "What if there's no escort for a night drop?",
+  "night drop timings shared routes"
+ ],
+ "59a74272d6e091e1ff2020114e1fcb68d7c732733b8fcf072f70bebfcd6334b3": [
+  "How fast do I need to tell the security desk about an accident?",
+  "Do I have to report a safety incident right away?",
+  "What\u2019s the deadline for filing a safety report?",
+  "Can I wait more than a day to report a safety issue?",
+  "safety report deadline"
+ ],
+ "2134841b36aa5e78fa60d15ed4439a7ea5de3a4b91dc6b3facaf0c711d4b1ff8": [
+  "Do I get a bus on the weekend if I'm not on the project list?",
+  "What if I need to travel Saturday? Can I use the company transport?",
+  "How do I know if I'm on the approved roster for weekend rides?",
+  "Is weekend transport free for everyone or just certain projects?",
+  "Weekend transport? (keyword: weekend-transport)"
+ ],
+ "8aeb8d2ab9d6825f345d252ca586bbf6e0b35813d7a7887c3b606f40ad9d34c1": [
+  "Do we get any transport on holidays?",
+  "What if I have to work on a public holiday, can I still use the company bus?",
+  "Is the commute allowance paid if I work on a holiday?",
+  "Do we get a bus on Christmas or New Year's?",
+  "holiday transport policy"
+ ],
+ "7b11ffd1cfa77c5cf713b7f2d54378e91ff7c75911fa4fb2a322ba99349b52c7": [
+  "Who signs off on a last\u2011minute trip?",
+  "Can my manager approve a spontaneous travel request?",
+  "Who do I ask if I need to book a quick trip?",
+  "Is the transport admin the one who gives the green light for ad\u2011hoc trips?",
+  "ad\u2011hoc trip approval"
+ ],
+ "afce8cd72d0b769c7560ed27e914557de7c3bdb8bebaf4cc37a6b266bb5ac4dc": [
+  "How do I get a ride to the airport?",
+  "Do I need to book my airport pickup ahead of time?",
+  "What\u2019s the deadline for scheduling an airport drop?",
+  "Can I just ask the admin for a last\u2011minute airport trip?",
+  "airport pickup 48h"
+ ],
+ "4a3112112988de2fe50b7f4db95423fa59b52f925da4f1aa0cdce06fd51a84bb": [
+  "How much can I get reimbursed for a cab ride?",
+  "Is there a limit on how much the company will pay for a taxi?",
+  "What\u2019s the max amount the company will cover per cab trip?",
+  "Do I get paid for a cab that costs more than 1000 rupees?",
+  "cab cap 1000"
+ ],
+ "d1a778b340876ac3e1eca5227a6bdda88ae6678b72866083c23e0bd2eb120da7": [
+  "Can my friend ride the company shuttle if I ask 24 hours before?",
+  "Do I need to tell the admin before my guest can use the shuttle?",
+  "Is it okay for a guest to take a night\u2011shift cab?",
+  "What if I forget to book the shuttle 24 hrs ahead?",
+  "guest shuttle 24h"
+ ],
+ "8e3882b51b06e74fd130f10569d2058febcbaee38eb7f1f3237e101d46e6bf02": [
+  "What happens if I miss a scheduled trip?",
+  "Do I get fined for not showing up?",
+  "Will I get a warning if I skip a ride twice?",
+  "Is there a penalty for a no-show?",
+  "no-show penalty?"
+ ],
+ "1aaad97eb5e859fb5d71b1759a8f49c14f45b5a24b29dd28f52405e46edf3647": [
+  "What happens if I miss my ride three times in a month?",
+  "Will I lose my transport for a week if I skip three trips?",
+  "How long is the suspension after the third no\u2011show?",
+  "Do I get a 7\u2011day ban after missing three rides?",
+  "no-show policy 30 days"
+ ],
+ "4b4094056f8fcb8f44c70a091ceaac2c6c88610b1753136e4d20d568ff8e6e47": [
+  "How far do I have to live to qualify for company transport?",
+  "Do I get a bus if I live 6 km away?",
+  "What if I live 4 km from the office?",
+  "Can I still use company transport if I'm within 5 km?",
+  "distance-eligible?"
+ ],
+ "8d7bda0ce6b1c428e46291211c5ba2e750bee9c4041074114b529cda460c8ab6": [
+  "Do I get a drop if my shift ends at 10pm?",
+  "What if my shift ends at 5am, can I still get a drop?",
+  "Is the drop available for night shifts only?",
+  "Do I need to be within a certain distance for the drop?",
+  "shift drop eligibility"
+ ],
+ "93d1cbe1f2617f8d96c8f0f4b4ab8d04285d7c9f9b2a5d884711110459d65d45": [
+  "When do I have to book my cab for tomorrow?",
+  "Can I request a ride after 6pm?",
+  "What\u2019s the deadline for same\u2011day cab requests?",
+  "Do I need to call the transport desk if it\u2019s an emergency?",
+  "cab\u2011booking\u2011cutoff"
+ ],
+ "28e6044b3c0042ed29ee4b67525e8151be21e74bde49f7fc2622042c1852e35f": [
+  "Can I cancel my ride for free if I do it 5 hours before?",
+  "What happens if I cancel 3 hours before the trip?",
+  "Is there a fee if I cancel 4 hours and 30 minutes before?",
+  "How do I cancel my booking?",
+  "cancel 4h before?"
+ ],
+ "f0c1618058a29c13663a4f1999b5c4f963d38c78fb47c86841b658c9857fcf64": [
+  "Do I need a security escort if I\u2019m a woman leaving after 9pm?",
+  "What if I\u2019m a guy dropping off at 2am? Do I need a second passenger?",
+  "Can I just take a ride home at 11pm and skip the escort?",
+  "Is the escort rule only for women or for everyone after midnight?",
+  "escort? 9pm+ women? 12am-6am all?"
+ ],
+ "feee185e00a2be7dd6a3ed4441714b0edbbf8daa28f02b2f58bf5bb1d71c7f74": [
+  "When does the last office drop happen?",
+  "Can I get a cab after 11:30pm?",
+  "What if I need a ride at midnight?",
+  "Do we have any late\u2011night transport options?",
+  "night drop timings"
+ ],
+ "cebe7c21128292cdc3bbea4a24ceeaf0d858ef7d1803989a2b1ce75940d47208": [
+  "How do I report a safety incident?",
+  "What\u2019s the quickest way to file a safety report?",
+  "Do I need to use the app or can I just call the desk?",
+  "How fast does the transport desk have to reply?",
+  "safety report app deadline"
+ ],
+ "7315dee9e0369fb3cbf10e2a7ca0f99ef7cb6ee888dc618029940f94f8bbe827": [
+  "Do we get a bus on Saturday?",
+  "Is there any transport on Sunday?",
+  "What days does the company shuttle run?",
+  "Can I use the company transport on weekends?",
+  "weekend transport saturday sunday?"
+ ],
+ "080b385b3449a72344c85774a79578ba919b498893caa275097894a3399b7c19": [
+  "Can I use the company bus on a holiday if I just ask the facilities head?",
+  "Do I need to book the holiday transport 48 hours before?",
+  "What if I forget to get approval from the facilities head for a holiday trip?",
+  "Is the 48\u2011hour notice rule for public holiday rides only?",
+  "holiday\u2011bus\u2011approval"
+ ],
+ "4caa0bc7e69d53658ace7a23c10481a9b544a800fa4ab7ae48d158e5ed8d0ef1": [
+  "Who can give me the green light for a last\u2011minute trip?",
+  "If I need to hop on a quick ride for an emergency, who signs it off?",
+  "Can the transport desk lead approve a spontaneous trip?",
+  "What\u2019s the process for getting an ad\u2011hoc trip approved?",
+  "ad-hoc trip approval"
+ ],
+ "aac9a0c66e4f482828f67c477c0a0332d3b6fff138c52c73e98101bd7b3d62de": [
+  "Do I need to get the boss and finance OK before flying to the airport?",
+  "Can I just book a flight if my manager says yes, or does finance have to sign off too?",
+  "What\u2019s the process for getting approval for an airport trip?",
+  "Who approves airport travel \u2013 just my manager or also the finance department?",
+  "airport trip approval"
+ ],
+ "59314dc877130e0482076dece12699898a3db995e53e04d156b1a5351dbf95bc": [
+  "How much can I get reimbursed for a cab ride?",
+  "Is there a max limit on a taxi trip?",
+  "What\u2019s the cap for an ad\u2011hoc cab?",
+  "Can I claim more than 1200 for a ride?",
+  "cab cap 1200?"
+ ],
+ "a4cf69aeb831607a81c9df883badc91899bf0f543e18d3c09207f3fe3c8e684d": [
+  "Can I bring my friend on a company trip?",
+  "Will the company drive my client\u2019s guest?",
+  "Do I need to book a car for a visitor?",
+  "Is a 24\u2011hour notice enough to get a ride?",
+  "guest transport policy"
+ ],
+ "049d16719d2b8e7118952189c7f4fcfc156a65c6c429e11e16cbb4dfec9e2b37": [
+  "What happens if I miss my ride once a month?",
+  "Do I get fined for a second no-show?",
+  "Will I lose my transport for the rest of the month after missing three times?",
+  "How many times can I skip a ride before I get a warning?",
+  "no-show penalty"
+ ],
+ "abe923ce0a33f7ad9e742f5a82de45dffa0eb7c1193afcf34b259e4c662e9c00": [
+  "What does the reviewer say about the policy?",
+  "Did the reviewer approve the changes?",
+  "What are the main points the reviewer mentioned?",
+  "Is there any feedback from the reviewer?",
+  "reviewer comment"
+ ]
+}

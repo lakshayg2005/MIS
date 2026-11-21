@@ -73,7 +73,12 @@ def create_app(settings: Settings | None = None, llm=None, embedder=None) -> Fas
         store = PolicyStore(settings.data_dir, include_flagged=not settings.quarantine_flagged)
         for c in store.companies():
             store.purge_inactive(c)  # clear chunks left by a crash mid-ingest
-        ingestor = Ingestor(store, emb, settings.max_policy_bytes, settings.embedder)
+        the_llm = llm or make_llm(settings.llm_provider, settings.llm_api_key, settings.llm_model)
+        expander = None
+        if settings.expand_questions:
+            from .expansion import Doc2Query
+            expander = Doc2Query(the_llm, str(Path(settings.data_dir) / "doc2query_cache.json"))
+        ingestor = Ingestor(store, emb, settings.max_policy_bytes, settings.embedder, settings.chunking, expander)
         seed_if_empty(settings, store, ingestor)
         emb.embed(["warm up"])  # load the model before the first user request
         reranker = None
@@ -81,9 +86,12 @@ def create_app(settings: Settings | None = None, llm=None, embedder=None) -> Fas
             from .rerank import CrossEncoderReranker
             reranker = CrossEncoderReranker()  # loaded once at startup, not on the first user request
             reranker.rerank("warm up", [{"title": "a", "text": "b"}, {"title": "c", "text": "d"}])
-        retriever = Retriever(store, emb, settings.retrieval_mode, settings.top_k, reranker=reranker)
-        app.state.service = QuestionService(settings, store, retriever,
-                                            llm or make_llm(settings.llm_provider, settings.llm_api_key, settings.llm_model))
+        transform = None
+        if settings.query_rewrite:
+            from .query_transforms import make_rewriter
+            transform = make_rewriter(the_llm)
+        retriever = Retriever(store, emb, settings.retrieval_mode, settings.top_k, reranker=reranker, transform=transform)
+        app.state.service = QuestionService(settings, store, retriever, the_llm)
         app.state.ingestor = ingestor
         yield
 
