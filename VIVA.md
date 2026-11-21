@@ -56,6 +56,10 @@ bigger eval set with real employee questions; a cross-encoder reranker if docume
 
 **Are the guardrails strong enough?** Say: isolation is architectural (strong); hallucination/injection are reduced and measured, not eliminated; the real gap is a malicious admin. See GUARDRAILS.md table.
 
+**Which bonus techniques did you try and why did you ship reranking?** Hybrid, reranking, query rewriting, HyDE, sentence/heading chunking, bge embeddings, doc2query, combos; all on a 63-query hard benchmark with a dev/test split, because our first set had a ceiling effect. Reranking gave recall@3 0.87 to 0.94 for ~70-100 ms and no LLM call. Rewriting gave the same quality but +1 LLM call and +0.5 s, and halves free-tier throughput. HyDE and sentence chunks hurt. Mention the same-model-faster-runtime finding (145 ms to 5 ms) and the honest wrinkle (rank-1 sometimes 2nd on clean queries).
+
+**What went wrong in that experiment?** My first LLM runs matched the baseline exactly: Groq's JSON mode needs the word "json", so every rewrite call failed with 400 and silently fell back. I fixed it, added failure counting that marks a technique INVALID, and discarded those numbers.
+
 ## Live-change cookbook (practise each once, then run `pytest -q`)
 | They ask | Change | Check |
 |---|---|---|

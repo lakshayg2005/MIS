@@ -210,3 +210,68 @@ identity ("are you a dog / human / AI"), how it works, privacy ("do you store my
 **Off-topic questions** (nothing in the policy is similar, e.g. "capital of France") now get a clearer message ("I couldn't find anything about this in your transport policy... otherwise this is outside what I can help with") instead of implying the policy was consulted and found silent. Still no LLM call.
 **Trade-off:** patterns are hand-written, so unusual phrasings fall through to the polite not-covered reply. The rules only match short messages that are entirely a pleasantry/meta question, so a real policy question is never swallowed (tests: `tests/test_smalltalk.py`).
 Eval set is now **48** cases (6 small-talk/meta). Real Groq run: **48/48 pass**, recall@3 1.0, judge faithful 100 %, 0 leaks, 0 errors, p95 935 ms.
+
+---
+
+# Update 3 (branch `bonus-retrieval`): all bonus techniques, compared properly
+
+The brief's bonus asks us to implement and measure retrieval improvements and report cost. The first round tried only hybrid search, and it could not show any
+gain because our end-to-end set has a **ceiling effect** (recall@3 was already 1.0). So this round (a) built a **harder retrieval-only benchmark** and
+(b) tried **every technique the brief lists plus some of our own**.
+
+## 16. Method
+* **Benchmark:** [eval/retrieval_hard.jsonl](eval/retrieval_hard.jsonl), **63 queries** over the three companies, each labelled with the section(s) that answer it: vocabulary mismatch (18: "guard" for escort, "Diwali" for public holiday), paraphrase (14), situational (12), short keyword (10), multi-section (7), typos (2). Labels were checked against the policy text by hand.
+* **Dev / test split:** alternate queries go to dev (33) or test (30). Choices are made on dev and confirmed on test, to avoid fooling ourselves. `R@3 dev / test` below shows when the two disagree.
+* **Fair comparison:** every technique builds a fresh store from the same three PDFs and answers the same queries; retrieval only (no answer generation), cold cache, `python -m eval.retrieval_lab [--llm]`.
+* **Techniques tried:** hybrid (vector + BM25 + RRF), **cross-encoder reranking**, **LLM query rewriting**, **HyDE**, **chunking changes** (finer: sentence chunks returning the parent section; coarser: one chunk per heading), **embedding-model swaps** (`minilm-fast`: the same MiniLM on a faster runtime; `bge-small`), **document expansion / doc2query** (LLM writes likely employee questions for each chunk at ingestion), and combinations.
+* **Rejected on principle:** a hand-written synonym glossary for query expansion. I wrote the benchmark queries myself, so a glossary I wrote afterwards would leak the answers into the technique and inflate its score.
+
+## 17. Results (all 63 queries)
+| Technique | R@1 | R@3 | MRR | nDCG@3 | R@3 dev / test | Retrieval ms (p50) | Extra LLM calls/q | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| baseline | 0.67 | 0.87 | 0.79 | 0.80 | 0.85 / 0.90 | 145 | 0.0 | reference (Chroma MiniLM, vector search, section chunks) |
+| embed-minilm-fast | 0.67 | 0.87 | 0.79 | 0.80 | 0.85 / 0.90 | 5 | 0.0 | **ADOPTED**: identical quality, 30x faster embedding (same model, faster runtime) |
+| hybrid | 0.70 | 0.93 | 0.84 | 0.86 | 0.95 / 0.90 | 146 | 0.0 | small MRR gain, below rerank; optional (`RETRIEVAL_MODE=hybrid`) |
+| rerank | 0.77 | 0.94 | 0.89 | 0.90 | 0.95 / 0.93 | 214 | 0.0 | **ADOPTED** (shown with the fast embedder below): biggest no-LLM gain |
+| fast+rerank | 0.77 | 0.94 | 0.89 | 0.90 | 0.95 / 0.93 | 114 | 0.0 | **SHIPPED DEFAULT**: best quality, and faster than the old baseline |
+| fast+rerank(pool5) | 0.77 | 0.93 | 0.88 | 0.89 | 0.92 / 0.93 | 67 | 0.0 | cheaper (5 candidates), slightly lower on dev; option |
+| hybrid+rerank | 0.77 | 0.94 | 0.89 | 0.90 | 0.95 / 0.93 | 218 | 0.0 | no gain over rerank alone |
+| fast+hybrid+rerank | 0.77 | 0.94 | 0.89 | 0.90 | 0.95 / 0.93 | 111 | 0.0 | no gain over rerank alone |
+| rewrite-llm | 0.77 | 0.94 | 0.88 | 0.89 | 0.92 / 0.97 | 608 | 1.0 | same MRR as rerank for +1 LLM call and +460 ms: not worth it; optional (`QUERY_REWRITE=1`) |
+| fast+rewrite | 0.77 | 0.94 | 0.88 | 0.89 | 0.92 / 0.97 | 488 | 1.0 | as above, with the fast embedder |
+| hyde-llm | 0.64 | 0.81 | 0.78 | 0.76 | 0.80 / 0.82 | 626 | 1.0 | **hurts**: the invented policy sentence misleads the search |
+| doc2query-llm | 0.70 | 0.94 | 0.83 | 0.86 | 0.92 / 0.97 | 142 | 0.0 | good recall at no query-time cost, but lower MRR than rerank; optional (`EXPAND_QUESTIONS=1`) |
+| fast+rerank+doc2query | 0.77 | 0.94 | 0.89 | 0.90 | 0.95 / 0.93 | 107 | 0.0 | no gain over rerank alone (the gains do not stack) |
+| chunk-sentence | 0.68 | 0.87 | 0.79 | 0.80 | 0.88 / 0.87 | 134 | 0.0 | **hurts** (small-to-big): sentences lose context |
+| chunk-heading | 0.67 | 0.96 | 0.83 | 0.84 | 0.95 / 0.97 | 133 | 0.0 | recall@3 looks high but only because chunks are big; rank-1 accuracy drops and citations get vaguer |
+| embed-bge-small | 0.65 | 0.86 | 0.78 | 0.79 | 0.89 / 0.83 | 8 | 0.0 | worse on test; not adopted |
+| bge+hybrid | 0.66 | 0.91 | 0.81 | 0.82 | 0.95 / 0.85 | 8 | 0.0 | worse on test |
+| bge+rerank | 0.77 | 0.94 | 0.89 | 0.90 | 0.95 / 0.93 | 125 | 0.0 | same as rerank |
+| bge+hybrid+rerank | 0.77 | 0.94 | 0.89 | 0.90 | 0.95 / 0.93 | 123 | 0.0 | same as rerank |
+
+R@k = recall@k (share of the labelled sections found in the top k), MRR = mean reciprocal rank, nDCG@3 = rank-aware gain. "Retrieval ms" is the retrieval stage alone, including the LLM call for rewriting/HyDE.
+
+## 18. What we learned
+1. **Reranking is the best no-LLM improvement:** recall@1 0.67 → 0.77, recall@3 0.87 → 0.94, MRR 0.79 → 0.89, and it helps on both dev and test.
+2. **A free 30x speedup:** the same all-MiniLM-L6-v2 model on the fastembed runtime embeds a question in about 5 ms instead of 145 ms, with **identical retrieval results**. Reranking then costs about 70 to 100 ms, so *fast + rerank is both better and faster than the old pipeline* (114 ms vs 145 ms).
+3. **Query rewriting works but is not worth it:** about the same quality as reranking (MRR 0.88 vs 0.89), for +1 LLM call and about 460 ms. It also halves free-tier throughput (the Groq limit is tokens per minute) and, under the 2-call cap, leaves the answer step no repair retry. Kept as an option (`QUERY_REWRITE=1`).
+4. **Document expansion is the best LLM-based idea:** recall@3 0.94 with **no query-time cost**, since the LLM runs once per chunk at ingestion (cached, and unchanged chunks are never re-expanded, so incremental ingestion still works). Its rank-1 accuracy is lower than reranking and it does not stack with it, so it stays optional (`EXPAND_QUESTIONS=1`).
+5. **HyDE hurts** (recall@3 0.87 → 0.81): the invented policy sentence misleads the search.
+6. **Chunking changes did not help.** Sentence chunks lose context (0.87). Heading-level chunks reach recall@3 0.96 only because each chunk is big; rank-1 accuracy falls and citations become vaguer ("section 3" instead of "3.1"), so that recall number flatters it.
+7. **Hybrid helps slightly** (MRR 0.84) but less than reranking, and adds nothing on top of it. `bge-small` is worse on test than MiniLM.
+8. **Dev and test sometimes disagree** (hybrid, bge, heading chunks), which is exactly why we do not trust a single split of 63 queries for small differences.
+
+## 19. Decision: new defaults and what each costs
+**Shipped:** `EMBEDDER=minilm-fast` + `RERANK=1` (cross-encoder `ms-marco-MiniLM-L-6-v2`, 10 candidates, return 3). Complexity cost: one extra dependency (`fastembed`), one small module (`app/rerank.py`, 15 lines), two models baked into the Docker image. Optional switches, all off: `QUERY_REWRITE=1`, `EXPAND_QUESTIONS=1`, `CHUNKING=sentence|heading`, `RETRIEVAL_MODE=hybrid`.
+
+**End-to-end regression with the shipped pipeline** (48 cases, real Groq, judge on): 47/48 pass (97.9 %); recall@3 **1.0**; hit@1 0.875; MRR 0.938; nDCG@3 0.954; judge faithful 100 %; numeric hallucination 0 %; leaks 0; 503 errors 0; p50/p95 774/892 ms. Raw: `results/summary_groq_shipped_fast_rerank.json`.
+* The one failure is `hard-grade-acme`: the **model** answers "not covered" instead of applying the 8 km rule to "L2, 7 km". It is the known flaky case (it passed in earlier runs and failed in others); retrieval gave it the right section.
+* **Honest wrinkle:** on our original, cleaner questions reranking moved the right section from rank 1 to rank 2 for four queries (e.g. "no-show twice": the reranker prefers §7.2 "repeated no-shows" over §7.1), so hit@1 fell from 0.969 to 0.875. recall@3 stayed 1.0 and all four answers were still correct because the model sees all three sections. So the gain is on hard queries (recall@3 and rank-1 there), not on already-easy ones. Over all 95 answerable queries, recall@3 improves from about 0.91 to 0.96 and rank-1 accuracy is about equal.
+
+## 20. Problems found while doing this (and fixed)
+* **Silent fallback:** my first run of query rewriting, HyDE and doc2query showed numbers *identical to the baseline*, which is suspicious. Cause: Groq's JSON mode requires the word "json" in the prompt, my rewrite prompts did not contain it, so every call returned HTTP 400 and the code silently fell back to the plain question. Fixes: free-text LLM calls now omit JSON mode (`json_mode=False`, tested), and the lab counts LLM failures and marks a technique INVALID if more than 5 % of calls fail. Those first numbers were discarded; the table above is from the corrected rerun.
+* **Call cap:** a rewrite call counts toward the 2-call cap. A naive "calls > 0 means this is a retry" check would have skipped the first answer attempt after a rewrite; fixed and tested (`test_rewrite_call_counts_toward_the_cap_but_never_blocks_the_first_answer`).
+* A version pin for `fastembed` I had not tested (0.8.0) was corrected to the tested 0.9.1.
+
+## 21. Limits of this experiment
+63 queries (30 test) written by the same person who wrote the policies; a one-query difference is 1.6 to 3.3 points, so gaps of 0.03 to 0.05 are within noise, and only the larger effects (reranking, the embedding speedup, HyDE hurting) should be trusted. No confidence intervals were computed. Policies are short (about 15 chunks per company); techniques such as hybrid search, doc2query and sentence chunking may behave differently on 30-page documents. The LLM techniques ran on one model (`gpt-oss-20b`).

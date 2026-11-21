@@ -52,7 +52,8 @@ curl -s localhost:8000/ask -H "Authorization: Bearer $(python -m scripts.issue_t
                               │
                               ▼
                           service.py       (every safety decision is plain code)
-   1 retrieve ─► Chroma collection of THAT company, ACTIVE version only (SQLite says which)
+   1 retrieve ─► Chroma collection of THAT company, ACTIVE version only (SQLite says which),
+                 10 candidates, then a cross-encoder reranks them and we keep the top 3
                  vector search (hybrid = vector + BM25 is optional, see EVALUATION.md); top 3; timeout 1 s; fail-closed company check on every chunk
    2 no/weak evidence? ─► "not covered" immediately, WITHOUT calling the LLM
    3 ONE LLM call: excerpts fenced as DATA, JSON answer + numbers of the excerpts used
@@ -80,6 +81,20 @@ curl -s localhost:8000/ask -H "Authorization: Bearer $(python -m scripts.issue_t
 * Each file has a **SHA-256 recorded when it is activated**. Uploading the identical file again is a no-op (nothing embedded, nothing changes).
 * `scripts/sync_policies.py` keeps a manifest of file hashes for a policy folder and uploads only new or changed files (`--watch N` polls). Polling is deliberate: no OS-specific dependency, easy to explain.
 * The hash includes the **model name**, so switching the embedding model never reuses vectors from another model. Reuse is **per company**.
+
+## Retrieval techniques tried (the bonus), and how to switch them
+We compared hybrid, reranking, query rewriting, HyDE, three chunking strategies, two embedding models and document expansion on a hard 63-query benchmark with a dev/test split (full table in [EVALUATION.md](EVALUATION.md), section 17). **Shipped by default: fast MiniLM + cross-encoder rerank.** Everything else is a switch:
+
+| Setting | Effect | Measured cost / result |
+|---|---|---|
+| `RERANK=1` (default) / `0` | cross-encoder reranking | best no-LLM gain |
+| `EMBEDDER=minilm-fast` (default) / `minilm` / `bge-small` | embedding model/runtime | `minilm-fast` is 30x faster; `bge-small` worse |
+| `RETRIEVAL_MODE=vector` (default) / `hybrid` | adds BM25 keyword fusion | small gain, none on top of rerank |
+| `QUERY_REWRITE=1` | LLM rewrites the question first | same quality as rerank, +1 LLM call, +~0.5 s |
+| `EXPAND_QUESTIONS=1` | LLM writes likely questions per chunk at ingestion | good recall, free at question time, LLM cost at ingestion |
+| `CHUNKING=section` (default) / `sentence` / `heading` | chunk granularity | both alternatives measured worse |
+
+Run the comparison yourself: `python -m eval.retrieval_lab` (no LLM) or `python -m eval.retrieval_lab --llm`. If you change `EMBEDDER`, wipe the stored vectors first (`docker compose down -v`).
 
 ## Retrieval speed: what we measured, and what we did not build
 Per question: embedding it on CPU = **134 ms**, Chroma HNSW search = **1.1 ms**, registry lookup = **0.04 ms**. So 99 % of retrieval time is embedding the question.
@@ -110,13 +125,14 @@ Clustering or index tuning could save about 1 ms, so it was **not built** (about
 | One Chroma collection **per company** | leak impossible by construction; a metadata filter is one forgotten `where` from a leak | more collections; fine up to hundreds of tenants, beyond that use a filter plus the same defensive check |
 | **SQLite pointer** decides the active version; chunks of a new version are staged first | version switch is one transaction; DB itself forbids two active versions | two stores to keep consistent; startup purge handles a crash in between |
 | Chunk **by numbered section** | citations mean "§3.1"; splitting a rule from its exception changes meaning | documents must be structured; unstructured ones are rejected with a clear error instead of guessed at |
-| **Local MiniLM** embeddings | free, offline, no quota, ~0.13 s per question on CPU | weaker than hosted embeddings; the bonus (hybrid) tests whether keywords help |
+| **Local MiniLM** embeddings (fastembed runtime) | free, offline, no quota, ~5 ms per question (the same model was 145 ms on Chroma's default runtime, with identical results) | weaker than hosted embeddings |
+| **Cross-encoder reranking** (default) | measured on a 63-query hard benchmark: recall@1 0.67 → 0.77, recall@3 0.87 → 0.94, for ~70-100 ms and no LLM call | extra dependency and model; on easy questions it sometimes puts the right section 2nd (still in the top 3) |
 | **One** LLM call, no query rewriting or judge call | latency budget and the 2-call cap | no LLM rewriting or LLM-as-judge; checks are deterministic code instead |
 | Similarity **gate before** the LLM | "not covered" is instant, free and cannot hallucinate | a too-high threshold could hide answerable questions; tuned on the eval set (`MIN_SIMILARITY`) |
 | Citations **built by code** from numbers the model picks | model cannot fabricate a section or a source | we can verify the cited excerpts exist, not that the model picked the *best* one |
 | Top **3** chunks to the LLM | = citation cap; ~40 % fewer tokens; eval shows the right section is always in the top 3 | a rule split across 4+ chunks would be missed |
 | Plain `httpx` to Groq's OpenAI-compatible API | ~30 lines, no SDK; the same code works for Gemini | no built-in retries (deliberate: see budget) |
-| Hand-written BM25 + RRF (the bonus), **off by default** | explainable in a minute, no dependency; we measured it | it did not beat plain vector search on this data and cost latency, so we do not ship it as default (EVALUATION.md) |
+| Hand-written BM25 + RRF (hybrid), **off by default** | explainable in a minute, no dependency; we measured it | it did not beat plain vector search on this data and cost latency, so we do not ship it as default (EVALUATION.md) |
 | HS256 shared secret | simplest verifiable JWT for a mock issuer | production would use RS256 with the identity provider's public key (one-line change) |
 | PDF in, **no OCR** | wrong text would mean wrong citations, which is worse than a refused upload | scanned PDFs are rejected |
 | **Progress + typed reveal, not raw token streaming** | The answer is only shown after the guardrails (JSON, citations, numbers, support) have checked it; streaming raw tokens would show text we might then have to retract. The UI shows real pipeline stages (which sections were found) and reveals the validated answer word by word | perceived speed is lower than true token streaming; total time is already about 0.7 s |
