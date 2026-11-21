@@ -80,7 +80,7 @@ def llm_judge(judge, ans, question: str):
 
 def answer_metrics(case: dict, ans, question: str) -> dict:
     """Quality / hallucination measures for ONE answered case (see eval/metrics.py for definitions)."""
-    from app.guardrails import support_ratio, ungrounded_numbers
+    from app.guardrails import sentence_groundedness, support_ratio, ungrounded_numbers
     from eval.metrics import mean
     exp, ex = case["expected"], [c["excerpt"] for c in ans.citations]
     cited = [c["section"] for c in ans.citations]
@@ -91,6 +91,7 @@ def answer_metrics(case: dict, ans, question: str) -> dict:
         "citation_recall": (len(set(cited) & set(exp["sections"])) / len(set(exp["sections"]))) if exp["sections"] else None,
         "numeric_hallucination": float(bool(ungrounded_numbers(ans.message, ex, question))),
         "support_ratio": round(support_ratio(ans.message, ex, question), 3),
+        "sentence_groundedness": (lambda g: round(g["grounded"] / max(g["sentences"], 1), 3))(sentence_groundedness(ans.message, ex, question)),
     }
 
 
@@ -172,6 +173,7 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float, judge_model:
             "citation_recall": M.mean([a["citation_recall"] for a in ams]),
             "numeric_hallucination_rate": M.mean([a["numeric_hallucination"] for a in ams]),
             "support_ratio_mean": M.mean([a["support_ratio"] for a in ams]),
+            "sentence_groundedness": M.mean([a["sentence_groundedness"] for a in ams]),
             "guardrail_rejected_attempts": sum(len(r["ans"].rejections) for r in rows),
             "judge_faithful_rate": M.mean([float(a["judge_faithful"]) for a in judged]) if judged else None,
             "judge_relevant_rate": M.mean([float(a["judge_relevant"]) for a in judged]) if judged else None,

@@ -1,0 +1,9 @@
+{
+ "answered_cases": 33,
+ "sentences": 40,
+ "sentence_groundedness_pct": 100.0,
+ "fully_grounded_answers_pct": 100.0,
+ "citation_validity_pct": 100.0,
+ "numeric_grounding_pct": 100.0,
+ "flagged_sentences": []
+}

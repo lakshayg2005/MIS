@@ -27,6 +27,28 @@ Without a key the app still starts, using an offline fake LLM; answers are then 
 Running without Docker: `pip install -r requirements.txt`, then
 `set -a; . ./.env; set +a; DEMO_MODE=1 uvicorn app.main:create_app --factory`.
 
+## Brief requirements, one by one (where it is, how it is proven)
+| Requirement from the brief | Where | Proof |
+|---|---|---|
+| Grounded answers that cite document and section | `service.py` builds every citation (document, version, section, page, excerpt) from our own metadata | `tests/test_service_robustness.py`; eval: citation precision/recall 1.0 |
+| An explicit "not covered" reply when evidence is missing | similarity gate (no LLM call) + the model's own `not_covered`; fixed message pointing to the transport desk | `test_no_evidence_skips_llm_entirely`; eval: not-covered recall 100 % |
+| No obedience to instructions found inside retrieved documents | injected sections quarantined at ingestion; excerpts fenced as data; no tools; output validated | `test_injected_document_text_is_data_not_instructions`; eval `inj-*` cases; red-team run with quarantine off |
+| A question API behind a JWT that carries the company; retrieval restricted to that company on the server, no client-controlled override | `auth.py` + `store.py` + `retrieval.py` (see "How the JWT works here" below) | `test_auth_rejections`, `test_client_cannot_choose_company`, `test_retrieval_never_returns_another_companys_chunk` |
+| Ingestion of a policy, including a new version; only the new one answers; a failed ingestion leaves nothing half-updated | `ingest.py` atomic version switch | `tests/test_ingest_versions.py` |
+| Three short policy documents with overlapping, contradictory rules | `data/policies/` (Markdown + PDF, about 2 pages each, as the brief's requirement asks) | eval cross-company cases |
+| At most 2 LLM calls and at most 3 cited chunks | `service.py` loop + `top_k = 3` | `test_never_more_than_two_llm_calls_and_three_citations` |
+| Evaluation set (10+ questions, JSONL), retrieval and answer quality, rerunnable | `eval/evalset.jsonl` (48 cases), `python -m eval.run` | [EVALUATION.md](EVALUATION.md) |
+| Bonus: a retrieval improvement, before and after | reranking + faster runtime shipped; many others measured | [EVALUATION.md](EVALUATION.md) sections 16-22 |
+
+## How the JWT works here
+The brief says: *"A question API behind a JWT that carries the company. Retrieval is restricted to that company on the server, with no client-controlled override."* In plain words:
+1. **JWT** = a signed token. After login the identity provider hands the employee a token containing claims such as `sub` (who), `company` (which company) and `exp` (expiry), signed with a secret only the servers know. Nobody can edit it without breaking the signature.
+2. **"Carries the company"**: the company is a claim *inside* that signed token, not something the user types.
+3. **"Restricted to that company on the server"**: the server reads the company from the verified token and searches only that company's policy data.
+4. **"No client-controlled override"**: there is no `company` field, query parameter or header that can change which company is searched. Sending `{"company": "borealis"}` in the body is simply ignored, and editing the token to say `borealis` invalidates the signature (HTTP 401).
+
+**Where it is used:** `app/auth.py` (`issue_token` = our mock identity provider; `verify_token` checks signature, expiry, issuer, audience, subject and company format, with the algorithm pinned; `current_principal` is the FastAPI dependency). Every endpoint depends on it: `/ask`, `/ask/stream`, `/me` and `/admin/policy` (admin role required, and an admin can only touch their own company). `scripts/issue_token.py` prints a token for testing; the demo page gets an employee token from `/demo/token` (demo mode only).
+
 ## API
 
 | Endpoint | Who | What |

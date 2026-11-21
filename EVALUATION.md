@@ -294,3 +294,21 @@ R@k = recall@k (share of the labelled sections found in the top k), MRR = mean r
 
 **Reading it:** nothing breaks at this size: ingestion is seconds, and an update only re-embeds what changed. Search time is dominated by whether we rerank (about 145 ms for 10 candidates of longer text), not by document size. On near-duplicate sections, plain vector search starts to confuse them (rank-1 0.929) while **hybrid and reranking both fix it** (1.0): so the techniques that were marginal on short documents matter more on long, repetitive ones. Hybrid is almost free here, so for a corpus like this `RETRIEVAL_MODE=hybrid` is worth switching on.
 **Caveats:** synthetic and templated (not real prose); 16 pages rather than 30 because the sections are short, but 168 chunks is in the range of a real 20-30 page policy; the task is easy in one respect (every query names its site). A real long document would also need real section structure, which our parser requires ("3.1 Title").
+
+---
+
+## 23. Groundedness: explicit measurement (answers the question "are answers grounded in the cited policy?")
+**Definition.** A sentence of an answer is **grounded** when (a) at least half of its content words appear in the policy text it cited (or in the question) and (b) every number in it appears in that cited text or the question. Computed with no LLM (`app/guardrails.sentence_groundedness`).
+We report four deterministic numbers and one LLM-judged number, and they measure different things:
+
+| Metric | What it tells you | Result (33 answered cases, 40 sentences) |
+|---|---|---|
+| **Sentence groundedness** | share of answer sentences supported by the cited text | **100 %** |
+| Fully grounded answers | share of answers in which every sentence is grounded | **100 %** |
+| Citation validity | cited sections really exist in that company's policy | **100 %** |
+| Numeric grounding | every number comes from the cited text or the question | **100 %** (also 0 % numeric hallucination in the main evaluation) |
+| LLM judge, faithful (`gpt-oss-120b`, independent of the answering model) | every claim backed by the excerpts | **100 %** (35/35 judged) |
+
+Reproduce: `python -m eval.groundedness` (reads the stored results, no LLM, prints every flagged sentence for human review; none were flagged). The same score is now also computed by `python -m eval.run` (`sentence_groundedness` in the summary).
+**Can the metric say no?** Yes. `tests/test_groundedness.py` feeds it an invented number, an invented extra claim without numbers ("complimentary breakfast vouchers") and off-topic text, and it flags all three. The judge was likewise validated on 5 deliberately wrong answers (8/8 correct verdicts).
+**Limits.** The check is lexical: it cannot see a wrong claim that reuses cited words and no new number (for example "interns are eligible" when the policy says they are not). That is why we also use the LLM judge and show the exact policy text beside every answer. 100 % on 33 answers is evidence of a working pipeline, not proof that it can never hallucinate.

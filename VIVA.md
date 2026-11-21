@@ -60,6 +60,10 @@ bigger eval set with real employee questions; a cross-encoder reranker if docume
 
 **What went wrong in that experiment?** My first LLM runs matched the baseline exactly: Groq's JSON mode needs the word "json", so every rewrite call failed with 400 and silently fell back. I fixed it, added failure counting that marks a technique INVALID, and discarded those numbers.
 
+**What does "a JWT that carries the company, no client-controlled override" mean?** The company is a signed claim inside the token; the server reads it from the *verified* token and searches only that company. There is no company field the client can send, and tampering with the token breaks its signature. See README "How the JWT works here" and `auth.py`.
+
+**How do you measure groundedness?** Sentence-level check against the cited text (content-word support plus numbers), citation validity, numeric grounding, and an independent LLM judge; the metric is tested with deliberately ungrounded answers so it can fail. Honest limit: it is lexical, so a wrong claim without new numbers can slip through.
+
 ## Live-change cookbook (practise each once, then run `pytest -q`)
 | They ask | Change | Check |
 |---|---|---|

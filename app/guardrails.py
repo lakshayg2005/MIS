@@ -45,3 +45,17 @@ def support_ratio(answer: str, evidence_texts: list, question: str = "") -> floa
     stem = lambda w: w.rstrip("s")  # noqa: E731  (cheap plural handling)
     ev_stems = {stem(w) for w in ev_words}
     return sum(stem(w) in ev_stems for w in words) / len(words)
+
+
+SENTENCE_MIN_SUPPORT = 0.5  # a sentence counts as grounded if at least half of its content words come from the cited text
+
+
+def sentence_groundedness(answer: str, evidence_texts: list, question: str = "") -> dict:
+    """Sentence-level groundedness, deterministic (no LLM). A sentence is GROUNDED when
+       (a) at least half of its content words appear in the cited policy text (or the question), and
+       (b) every number in it appears in the cited policy text or the question.
+    Returns {"sentences": n, "grounded": g, "ungrounded": [sentence, ...]}."""
+    sents = [x.strip() for x in re.split(r"(?<=[.!?])\s+", answer.strip()) if x.strip()]
+    bad = [x for x in sents if support_ratio(x, evidence_texts, question) < SENTENCE_MIN_SUPPORT
+           or ungrounded_numbers(x, evidence_texts, question)]
+    return {"sentences": len(sents), "grounded": len(sents) - len(bad), "ungrounded": bad}
