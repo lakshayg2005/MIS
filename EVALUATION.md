@@ -248,7 +248,7 @@ gain because our end-to-end set has a **ceiling effect** (recall@3 was already 1
 | bge+rerank | 0.77 | 0.94 | 0.89 | 0.90 | 0.95 / 0.93 | 125 | 0.0 | same as rerank |
 | bge+hybrid+rerank | 0.77 | 0.94 | 0.89 | 0.90 | 0.95 / 0.93 | 123 | 0.0 | same as rerank |
 
-R@k = recall@k (share of the labelled sections found in the top k), MRR = mean reciprocal rank, nDCG@3 = rank-aware gain. "Retrieval ms" is the retrieval stage alone, including the LLM call for rewriting/HyDE.
+R@k = recall@k (share of the labelled sections found in the top k), MRR = mean reciprocal rank, nDCG@3 = rank-aware gain. "Retrieval ms" is the retrieval stage alone, including the LLM call for rewriting.
 
 ## 18. What we learned
 1. **Reranking is the best no-LLM improvement:** recall@1 0.67 → 0.77, recall@3 0.87 → 0.94, MRR 0.79 → 0.89, and it helps on both dev and test.
