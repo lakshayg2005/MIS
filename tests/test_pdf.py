@@ -52,7 +52,7 @@ def test_pdf_without_text_is_rejected_clearly():
 
 
 def test_oversized_upload_rejected(make_client, tok):
-    c = make_client()
+    c = make_client(max_policy_bytes=200_000)
     r = c.put("/admin/policy", content=b"x" * 300_000, headers={**tok("acme", "admin"), "Content-Type": "text/markdown"})
     assert r.status_code == 413
 
@@ -62,3 +62,20 @@ def test_section_number_must_match_its_heading():
     p = parse_policy([(1, "T"), (1, "Version: 1"), (1, "3. Booking"), (1, "3.1 Cut-off"),
                       (1, "Book at least"), (1, "1.5 hours before the shift.")])
     assert [c.section for c in p.chunks] == ["3.1"] and "1.5 hours" in p.chunks[0].text
+
+
+def test_a_realistic_multi_megabyte_pdf_is_accepted_but_over_the_limit_is_not(make_client, tok):
+    from fpdf import FPDF
+    pdf = FPDF()
+    pdf.set_compression(False)  # uncompressed streams make the file large, like a PDF full of formatting/logos
+    for n in range(12):
+        pdf.add_page()
+        pdf.set_font("Helvetica", size=10)
+        pdf.multi_cell(0, 5, ("1. Section\n1.1 Rule\nPlain rule text here. " if n == 0 else "") + "padding " * 4000)
+    body = b"# T\nVersion: 2\n" if False else bytes(pdf.output())
+    assert len(body) > 200_000  # bigger than the old limit
+    c = make_client()
+    r = c.put("/admin/policy", content=body, headers={**tok("acme", "admin"), "Content-Type": "application/pdf"})
+    assert r.status_code != 413  # not rejected for size (it may be rejected as a document for lacking Version: that is a different, valid reason)
+    c2 = make_client(max_policy_bytes=len(body) - 1)
+    assert c2.put("/admin/policy", content=body, headers={**tok("acme", "admin"), "Content-Type": "application/pdf"}).status_code == 413

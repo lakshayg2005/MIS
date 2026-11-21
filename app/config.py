@@ -40,4 +40,4 @@ class Settings:
     retry_min_remaining_s: float = 1.0  # only retry a malformed LLM answer if this much budget is left
     # --- input limits ---
     max_question_chars: int = 500
-    max_policy_bytes: int = 200_000
+    max_policy_bytes: int = 10_000_000  # real 10-30 page HR PDFs (logos, formatting) are often 0.5-5 MB; the 100-page cap still applies
