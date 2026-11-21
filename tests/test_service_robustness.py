@@ -171,3 +171,45 @@ def test_json_mode_can_be_switched_off_for_free_text_calls():
     llm.complete("s", "u", 1)
     llm.complete("s", "u", 1, json_mode=False)
     assert "response_format" in sent[0] and "response_format" not in sent[1]
+
+
+def test_connection_failure_is_retried_once_but_server_errors_and_timeouts_are_not():
+    calls = {"n": 0}
+
+    def flaky(request):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise httpx.ConnectError("connection reset by peer")
+        return httpx.Response(200, json={"choices": [{"message": {"content": "hi"}}]})
+
+    assert OpenAICompatLLM("groq", "k", transport=httpx.MockTransport(flaky)).complete("s", "u", 2.0) == "hi" and calls["n"] == 2
+
+    always = {"n": 0}
+
+    def down(request):
+        always["n"] += 1
+        raise httpx.ConnectError("down")
+
+    with pytest.raises(LLMError):
+        OpenAICompatLLM("groq", "k", transport=httpx.MockTransport(down)).complete("s", "u", 2.0)
+    assert always["n"] == 2  # exactly one retry, not a loop
+
+    seen = {"n": 0}
+
+    def quota(request):
+        seen["n"] += 1
+        return httpx.Response(429, json={})
+
+    with pytest.raises(LLMError):
+        OpenAICompatLLM("groq", "k", transport=httpx.MockTransport(quota)).complete("s", "u", 2.0)
+    assert seen["n"] == 1  # a 429 is never retried
+
+    tiny = {"n": 0}
+
+    def down2(request):
+        tiny["n"] += 1
+        raise httpx.ConnectError("down")
+
+    with pytest.raises(LLMError):
+        OpenAICompatLLM("groq", "k", transport=httpx.MockTransport(down2)).complete("s", "u", 0.3)
+    assert tiny["n"] == 1  # no spare time budget -> no retry

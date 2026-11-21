@@ -72,7 +72,7 @@ curl -s localhost:8000/ask -H "Authorization: Bearer $(python -m scripts.issue_t
 "is there evidence", citations and leak checks are ordinary code the model cannot override.
 
 ### How we stay inside the two numbers
-* **≤ 2 LLM calls per question.** Normal path = **1** call. The 2nd call exists only to repair a *malformed* reply, and only if ≥ 1 s of the time budget is left. Transport errors (quota, timeout) are **not** retried: the time is already gone. `max_llm_calls = 2` is enforced in a loop, and tested.
+* **≤ 2 LLM calls per question.** Normal path = **1** call. The 2nd call exists only to repair a *malformed* reply, and only if ≥ 1 s of the time budget is left. Quota errors, HTTP errors and timeouts are **not** retried (the time or quota is already spent). The one exception: a *connection that never opened* (nothing reached the model, no tokens used) gets one fast retry if the time budget allows; this does not count as an LLM call. `max_llm_calls = 2` is enforced in a loop, and tested.
 * **≤ 3 cited chunks.** Retrieval returns only the top 3 (`top_k = 3`), the LLM only ever sees those, and citations are capped at 3 in code. Also tested.
 * **p95 < 3 s.** Retrieval ≈ 0.14 s (mostly the CPU embedding of the question); one short LLM call ≈ 0.4–0.9 s; hard budget 2.8 s (retrieval timeout 1 s, LLM timeout = remaining budget). Measured numbers: [EVALUATION.md](EVALUATION.md).
 
