@@ -4,3 +4,7 @@ __pycache__/
 *.pyc
 .env
 .pytest_cache/
+
+# personal prep notes (not part of the submission)
+VIVA.md
+RECORDING.md

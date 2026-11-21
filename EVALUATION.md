@@ -22,13 +22,13 @@
 > | Retrieval time p50 | 148 ms (Chroma's default MiniLM runtime) | 249 ms (fast runtime + hybrid + rerank) |
 >
 > **The honest reading (a trade-off I made):** on our easy 48-case set the simple baseline is already perfect on answers, so the shipped pipeline adds nothing there and costs about 220 ms and a slightly lower rank-1 score; the benefit shows on the harder 63-query benchmark (recall@3 0.79 -> 0.90) and on near-duplicate sections in long documents (stress test: vector-only rank-1 0.93, hybrid and rerank 1.0). I shipped hybrid + rerank for robustness on long policies and accepted the latency (p95 still about a quarter of the 3 s budget) and the extra complexity (one dependency, about 60 lines). `RERANK=0 RETRIEVAL_MODE=vector` restores the simple pipeline.
-> **Latency over real HTTP (Docker, login, real LLM):** see "HTTP benchmark" below. **LLM calls per question:** 1 (max 2). **Cited chunks:** at most 3.
+> **Latency over real HTTP** (Docker container, login flow, real LLM, 40 requests, `python -m eval.bench`): 0 errors, **p50 544 ms, p95 855 ms, max 917 ms** against the 3 s target (raw: `eval/results/bench.json`). **LLM calls per question:** 1 (max 2). **Cited chunks:** at most 3.
 >
 > **Known failures and limits (details in sections 5, 21, 23):** (1) the answering model is the weak link: an earlier model (`gpt-oss-20b`, short-document runs) intermittently answered "not covered" for the L2/7 km case; `qwen` got it right in the final run, which shows model sensitivity, not that it is solved; (2) full-length policies make every request carry about 1,000-1,500 tokens, so the free tier (8,000 tokens/min, 200,000 tokens/day per model) serves only about 5 questions a minute, and my own repeated evaluation runs exhausted a model's daily quota once (switching model fixed it); (3) the 48-case and 63-query sets are small and written by the same person who wrote the policies; (4) the LLM-based retrieval techniques (rewriting, document expansion) were only measured on the short documents; (5) the sentence-groundedness metric is word-overlap based: it flagged 1 of 57 sentences in the offline report, a faithful paraphrase ("Any amount exceeding this cap is not reimbursed" for "Trips above the cap are not reimbursed"), i.e. a false positive; (6) extra chapters of the long policies were LLM-drafted, so they are realistic-looking filler rather than carefully authored policy.
 
 ## 1. What was evaluated and how
 
-**Set:** [eval/evalset.jsonl](eval/evalset.jsonl), 42 cases, one JSON line each with `id, input, expected, actual, pass, notes`.
+**Set:** [eval/evalset.jsonl](eval/evalset.jsonl), 48 cases (42 originally, as in the table below, plus 6 small-talk / meta-question cases added later, see section 14-15), one JSON line each with `id, input, expected, actual, pass, notes`.
 `input` = `{company, question}` (plus `setup_ingest` for the two version-update cases); `expected` = allowed status,
 expected section(s), facts that must appear (`a|b` = alternatives) and text that must not appear.
 
@@ -52,7 +52,7 @@ Expected values were verified by hand against the policy text (all rules are in 
 
 **Method:** `python -m eval.run`: fresh store per mode, seeded from the **PDF** policies, real MiniLM embeddings, real Groq LLM (`openai/gpt-oss-20b`, temperature 0), cases run in file order, paced to Groq's free-tier limit. Rerun it any time. Without a key use `--llm fake` (retrieval metrics are unchanged; answer-text metrics are then meaningless).
 
-## 2. Results (official run, shipped configuration = vector retrieval)
+## 2. Results of the FIRST round (short 2-page policies, vector retrieval; superseded by the box at the top, kept for history)
 
 | Metric | Vector (shipped) | Hybrid (bonus) |
 |---|---|---|
