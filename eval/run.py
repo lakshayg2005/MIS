@@ -144,8 +144,11 @@ def run_mode(label: str, cases: list, llm_name: str, sleep_s: float, judge_model
                              "ndcg@3": M.ndcg_at_k(exp_secs, got, 3)})
         retriever._qcache.clear()  # measure COLD latency: the call above would otherwise warm the question cache
         ans = svc.ask(co, q)
-        if ans.status == "error" and llm_name != "fake":  # harness-only: transient quota/network, retry once
-            time.sleep(40)  # token-per-minute window resets in ~40 s
+        for attempt in range(3):  # harness-only: this machine's network to the LLM resets connections now and then;
+            if ans.status != "error" or llm_name == "fake" or ans.reason != "llm_failed":  # a reset must not make a case look like a product failure
+                break
+            time.sleep(20 if attempt == 0 else 45)  # (the app itself deliberately does not retry beyond one fast reconnect)
+            retriever._qcache.clear()
             ans = svc.ask(co, q)
         ok, notes, leak = judge(case, ans, got)
         am = answer_metrics(case, ans, q) if ans.status == "answered" else None
