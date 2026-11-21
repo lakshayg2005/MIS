@@ -1,5 +1,31 @@
 # Evaluation report
 
+> **Read this first: final state of the submission.** The report below grew in stages (sections 1-8 first round, then updates 1-3); this box is the current truth.
+>
+> * **Documents:** three full-length policies (13-14 pages, about 9,000 words each, PDF + Markdown) for Acme, Borealis and Cygnus, plus 2-page versions of the same core rules used as unit-test fixtures. The numbered core rules are the contradictory, verified ones; the extra chapters were generated under checked constraints (no numbers, no other company's name).
+> * **Pipeline shipped:** question -> hybrid search (vector + BM25) over the caller's company only -> cross-encoder rerank of 6 candidates -> top 3 -> ONE LLM call (`qwen/qwen3.8-27b` on Groq) -> validation (JSON, citations, numbers, wording, other-company names) -> answer + citations, or "not covered", or "try again".
+> * **Evaluation set:** `eval/evalset.jsonl`, 48 cases (`id, input, expected, actual, pass, notes`), rerun with `python -m eval.run` (offline: `--llm fake`).
+>
+> | Official run on the full-length policies (real LLM: `qwen/qwen3.8-27b`, judge: `gpt-oss-120b`) | Before: plain vector search | After: hybrid + rerank (shipped) |
+> |---|---|---|
+> | Cases passed | 48 / 48 | 48 / 48 |
+> | Retrieval recall@3 / MRR / hit@1 | 1.00 / 0.984 / 0.969 | 1.00 / 0.938 / 0.875 |
+> | Not-covered recall / precision | 100 % / 100 % | 100 % / 100 % |
+> | Cross-company leaks / errors | 0 / 0 | 0 / 0 |
+> | Numeric hallucination / sentence groundedness (eval) | 0 % / 100 % | 0 % / 98.6 % |
+> | LLM judge: faithful / relevant (35 judged) | not judged | 100 % / 97.1 % |
+> | Latency p50 / p95, LLM call included (in-process) | 329 / 531 ms | 551 / 748 ms |
+>
+> | Harder retrieval-only benchmark (63 queries, full-length policies, `eval/retrieval_hard.jsonl`) | Before | After (shipped) |
+> |---|---|---|
+> | recall@1 / recall@3 / MRR / nDCG@3 | 0.65 / 0.79 / 0.75 / 0.75 | **0.73 / 0.90 / 0.85 / 0.85** |
+> | Retrieval time p50 | 148 ms (Chroma's default MiniLM runtime) | 249 ms (fast runtime + hybrid + rerank) |
+>
+> **The honest reading (a trade-off I made):** on our easy 48-case set the simple baseline is already perfect on answers, so the shipped pipeline adds nothing there and costs about 220 ms and a slightly lower rank-1 score; the benefit shows on the harder 63-query benchmark (recall@3 0.79 -> 0.90) and on near-duplicate sections in long documents (stress test: vector-only rank-1 0.93, hybrid and rerank 1.0). I shipped hybrid + rerank for robustness on long policies and accepted the latency (p95 still about a quarter of the 3 s budget) and the extra complexity (one dependency, about 60 lines). `RERANK=0 RETRIEVAL_MODE=vector` restores the simple pipeline.
+> **Latency over real HTTP (Docker, login, real LLM):** see "HTTP benchmark" below. **LLM calls per question:** 1 (max 2). **Cited chunks:** at most 3.
+>
+> **Known failures and limits (details in sections 5, 21, 23):** (1) the answering model is the weak link: an earlier model (`gpt-oss-20b`, short-document runs) intermittently answered "not covered" for the L2/7 km case; `qwen` got it right in the final run, which shows model sensitivity, not that it is solved; (2) full-length policies make every request carry about 1,000-1,500 tokens, so the free tier (8,000 tokens/min, 200,000 tokens/day per model) serves only about 5 questions a minute, and my own repeated evaluation runs exhausted a model's daily quota once (switching model fixed it); (3) the 48-case and 63-query sets are small and written by the same person who wrote the policies; (4) the LLM-based retrieval techniques (rewriting, document expansion) were only measured on the short documents; (5) the sentence-groundedness metric is word-overlap based: it flagged 1 of 57 sentences in the offline report, a faithful paraphrase ("Any amount exceeding this cap is not reimbursed" for "Trips above the cap are not reimbursed"), i.e. a false positive; (6) extra chapters of the long policies were LLM-drafted, so they are realistic-looking filler rather than carefully authored policy.
+
 ## 1. What was evaluated and how
 
 **Set:** [eval/evalset.jsonl](eval/evalset.jsonl), 42 cases, one JSON line each with `id, input, expected, actual, pass, notes`.

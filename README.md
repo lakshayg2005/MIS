@@ -191,6 +191,6 @@ Also stress-tested with a synthetic multi-site policy (168 near-duplicate sectio
 app/      main.py (API)  auth.py  service.py (pipeline)  retrieval.py  store.py  ingest.py
           chunking.py  documents.py (PDF/MD)  embeddings.py  llm.py  guardrails.py  config.py
 data/policies/   3 companies + Acme v2, as .md source and .pdf (made by scripts/make_pdfs.py)
-tests/    97 tests, fake LLM, no network      eval/   evalset.jsonl, run.py, bench.py, results/
+tests/    171 tests, fake LLM, no network      eval/   evalset.jsonl, run.py, bench.py, results/
 web/      demo page    scripts/   token issuer, policy uploader, folder sync, PDF generator
 ```
