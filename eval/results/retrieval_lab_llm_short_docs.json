@@ -1,0 +1,146 @@
+[
+ {
+  "technique": "rewrite-llm",
+  "valid": true,
+  "llm_calls_made": 63,
+  "llm_errors": 0,
+  "dev": {
+   "recall@1": 0.742,
+   "recall@3": 0.924,
+   "mrr": 0.869,
+   "ndcg@3": 0.864
+  },
+  "test": {
+   "recall@1": 0.8,
+   "recall@3": 0.967,
+   "mrr": 0.889,
+   "ndcg@3": 0.911
+  },
+  "all": {
+   "recall@1": 0.77,
+   "recall@3": 0.944,
+   "mrr": 0.878,
+   "ndcg@3": 0.886
+  },
+  "latency_ms_p50": 607.8,
+  "latency_ms_p95": 726.2,
+  "extra_llm_calls_per_query": 1.0,
+  "ingest_s": 2.2,
+  "by_kind_recall@3": {
+   "multi-section": 0.79,
+   "paraphrase": 1.0,
+   "short": 1.0,
+   "situational": 0.83,
+   "typo": 1.0,
+   "vocab-mismatch": 1.0
+  }
+ },
+ {
+  "technique": "doc2query-llm",
+  "valid": true,
+  "llm_calls_made": 46,
+  "llm_errors": 0,
+  "dev": {
+   "recall@1": 0.652,
+   "recall@3": 0.924,
+   "mrr": 0.793,
+   "ndcg@3": 0.815
+  },
+  "test": {
+   "recall@1": 0.75,
+   "recall@3": 0.967,
+   "mrr": 0.878,
+   "ndcg@3": 0.901
+  },
+  "all": {
+   "recall@1": 0.698,
+   "recall@3": 0.944,
+   "mrr": 0.833,
+   "ndcg@3": 0.856
+  },
+  "latency_ms_p50": 141.5,
+  "latency_ms_p95": 181.6,
+  "extra_llm_calls_per_query": 0.0,
+  "ingest_s": 158.1,
+  "by_kind_recall@3": {
+   "multi-section": 0.93,
+   "paraphrase": 1.0,
+   "short": 1.0,
+   "situational": 0.83,
+   "typo": 1.0,
+   "vocab-mismatch": 0.94
+  }
+ },
+ {
+  "technique": "fast+rewrite",
+  "valid": true,
+  "llm_calls_made": 63,
+  "llm_errors": 0,
+  "dev": {
+   "recall@1": 0.742,
+   "recall@3": 0.924,
+   "mrr": 0.869,
+   "ndcg@3": 0.864
+  },
+  "test": {
+   "recall@1": 0.8,
+   "recall@3": 0.967,
+   "mrr": 0.889,
+   "ndcg@3": 0.911
+  },
+  "all": {
+   "recall@1": 0.77,
+   "recall@3": 0.944,
+   "mrr": 0.878,
+   "ndcg@3": 0.886
+  },
+  "latency_ms_p50": 487.5,
+  "latency_ms_p95": 605.4,
+  "extra_llm_calls_per_query": 1.0,
+  "ingest_s": 0.9,
+  "by_kind_recall@3": {
+   "multi-section": 0.79,
+   "paraphrase": 1.0,
+   "short": 1.0,
+   "situational": 0.83,
+   "typo": 1.0,
+   "vocab-mismatch": 1.0
+  }
+ },
+ {
+  "technique": "fast+rerank+doc2query",
+  "valid": true,
+  "llm_calls_made": 1,
+  "llm_errors": 0,
+  "dev": {
+   "recall@1": 0.788,
+   "recall@3": 0.955,
+   "mrr": 0.904,
+   "ndcg@3": 0.909
+  },
+  "test": {
+   "recall@1": 0.75,
+   "recall@3": 0.933,
+   "mrr": 0.867,
+   "ndcg@3": 0.881
+  },
+  "all": {
+   "recall@1": 0.77,
+   "recall@3": 0.944,
+   "mrr": 0.886,
+   "ndcg@3": 0.896
+  },
+  "latency_ms_p50": 106.8,
+  "latency_ms_p95": 130.2,
+  "extra_llm_calls_per_query": 0.0,
+  "ingest_s": 1.5,
+  "by_kind_recall@3": {
+   "multi-section": 0.93,
+   "paraphrase": 1.0,
+   "short": 1.0,
+   "situational": 1.0,
+   "typo": 1.0,
+   "vocab-mismatch": 0.83
+  }
+ }
+]

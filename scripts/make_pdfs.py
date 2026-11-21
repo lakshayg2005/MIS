@@ -7,7 +7,7 @@ from pathlib import Path
 
 from fpdf import FPDF
 
-DIR = Path(__file__).resolve().parent.parent / "data" / "policies"
+DIR = Path(__file__).resolve().parent.parent / "data" / "policies"  # full-length (about 15 pages); short/ holds the 2-page test fixtures
 
 
 class Doc(FPDF):
@@ -45,6 +45,6 @@ def render(md: str, out: Path):
 
 
 if __name__ == "__main__":
-    for md in sorted(DIR.glob("*.md")):
+    for md in sorted(list(DIR.glob("*.md")) + list((DIR / "short").glob("*.md"))):
         render(md.read_text(), md.with_suffix(".pdf"))
-        print("wrote", md.with_suffix(".pdf").name)
+        print("wrote", md.with_suffix(".pdf").relative_to(DIR))

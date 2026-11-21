@@ -12,7 +12,7 @@ from app.embeddings import HashEmbedder
 from app.llm import LLMError
 from app.main import create_app
 
-POLICIES = Path(__file__).resolve().parent.parent / "data" / "policies"
+POLICIES = Path(__file__).resolve().parent.parent / "data" / "policies" / "short"  # 2-page versions: stable fixtures (exact chunk counts are asserted)
 
 
 class ScriptedLLM:
