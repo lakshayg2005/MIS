@@ -35,6 +35,15 @@ docker compose run --rm api python -m eval.groundedness                # grounde
 Running without Docker: `pip install -r requirements.txt`, then
 `set -a; . ./.env; set +a; DEMO_MODE=1 uvicorn app.main:create_app --factory`.
 
+## Which file is the evaluation set?
+**`eval/evalset.jsonl` is the case-study evaluation set**: 48 verified cases, one JSON line each with the required fields `id, input, expected, actual, pass, notes` (paraphrases, cross-company traps, "not covered", injection, version-update and small-talk cases). Rerun and re-score it any time with `python -m eval.run` (offline, no key: `docker compose run --rm api python -m eval.run --llm fake --no-write`). How a case is judged (expected status, cited section, required facts, forbidden text, no foreign-company citation) and every metric are defined in [EVALUATION.md](EVALUATION.md), section 1.
+
+| File | What it is | Used by |
+|---|---|---|
+| `eval/evalset.jsonl` | **the evaluation set** (end to end: retrieval and answers) | `python -m eval.run` |
+| `eval/retrieval_hard.jsonl` | 63 harder retrieval-only queries, used only for the bonus before/after comparison (different fields, no answers) | `python -m eval.retrieval_lab` |
+| `eval/results/*.json` | raw results behind the numbers in the report | read-only |
+
 ## Brief requirements, one by one (where it is, how it is proven)
 | Requirement from the brief | Where | Proof |
 |---|---|---|
