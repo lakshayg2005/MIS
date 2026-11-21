@@ -39,6 +39,7 @@ def render(md: str, out: Path):
             pdf.set_font("Helvetica", "B", 10.5); text = line[4:]
         else:
             pdf.set_font("Helvetica", "", 10); text = line
+        text = text.encode("latin-1", "replace").decode("latin-1")  # core PDF fonts are latin-1 only
         if text.strip():
             pdf.multi_cell(0, 5.5, text, new_x="LMARGIN", new_y="NEXT")
     pdf.output(str(out))

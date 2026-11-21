@@ -49,7 +49,12 @@ _NUM = re.compile(r"\d")
 _SECTION_REF = re.compile(r"[Ss]ections? \d+(\.\d+)?")
 
 
+_ASCII = str.maketrans({"\u2019": "'", "\u2018": "'", "\u201c": '"', "\u201d": '"', "\u2013": "-", "\u2014": "-", "\u2011": "-", "\u2010": "-",
+                        "\u2026": "...", "\u00a0": " ", "\u202f": " ", "\u2009": " ", "\u00d7": "x", "\u2022": "-"})
+
+
 def clean(text: str) -> str:
+    text = text.translate(_ASCII).encode("ascii", "ignore").decode()  # plain ASCII: renders in any PDF font, identical in .md and .pdf
     text = re.sub(r"[*_`#]+", "", text)
     return "\n\n".join(" ".join(p.split()) for p in re.split(r"\n\s*\n", text.strip()) if p.strip())
 
@@ -117,6 +122,7 @@ def main():
                     CACHE.write_text(json.dumps(cache, indent=1))
                     print(f"{key} {n}.{si} {title} ({len(cache[ck].split())} words)", flush=True)
                     time.sleep(5)  # stay under the free-tier tokens-per-minute limit
+                cache[ck] = clean(cache[ck])  # normalises older cache entries too
                 extra_md.append(f"\n### {n}.{si} {title}\n{cache[ck]}\n")
         body = "".join(extra_md)
         (OUT / co["file"]).write_text(core + body)

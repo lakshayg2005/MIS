@@ -15,7 +15,7 @@ split on paragraph boundaries but keep the same section id.
 import re
 from dataclasses import dataclass
 
-MAX_CHUNK_CHARS = 1200
+MAX_CHUNK_CHARS = 2000  # real policy sections run 1-1.5 KB; PDF extraction cannot split at blank lines, so keep md and pdf chunking identical
 
 _VERSION_RE = re.compile(r"^Version:\s*(\d+)\s*$", re.IGNORECASE)
 _SECTION_RE = re.compile(r"^(?:#{1,6}\s+)?(\d+\.\d+)\s+(\S.*?)\s*$")
