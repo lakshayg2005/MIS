@@ -5,7 +5,7 @@ from app.embeddings import HashEmbedder
 from app.expansion import Doc2Query
 from app.ingest import Ingestor
 from app.llm import LLMError
-from app.query_transforms import make_hyde, make_rewriter
+from app.query_transforms import make_rewriter
 from app.retrieval import Retriever
 from app.store import PolicyStore
 
@@ -76,7 +76,6 @@ def test_rewrite_uses_one_call_and_falls_back_on_failure():
     assert make_rewriter(llm)("how early do i book") == ("What is the booking cut-off?", 1)
     assert make_rewriter(Said(LLMError("quota")))("how early do i book") == ("how early do i book", 1)  # fallback, call still counted
     assert make_rewriter(Said(""))("x y z") == ("x y z", 1)  # empty rewrite ignored
-    assert make_hyde(Said("Bookings close 4 hours before."))("when to book")[1] == 1
 
 
 def test_rewritten_query_is_what_gets_searched(tmp_path, policy_text):

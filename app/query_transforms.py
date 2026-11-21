@@ -8,8 +8,6 @@ REWRITE_SYSTEM = ("You rewrite an employee's question so it matches the wording 
                   "(terms like: eligibility, grade, distance, shift, booking cut-off, cancellation, security escort, night drop, "
                   "weekend, public holiday, ad-hoc trip approval, airport trip, cost cap, guest, no-show penalty, suspension). "
                   "Fix typos, replace slang with policy terms, keep every number and time. Reply with ONLY the rewritten question.")
-HYDE_SYSTEM = ("Write ONE sentence, in the style of a corporate transport policy, that would directly answer the employee's question. "
-               "Do not invent specific numbers; use the employee's own numbers if any. Reply with ONLY that sentence.")
 
 
 def _llm_transform(llm, system: str, timeout_s: float):
@@ -26,6 +24,3 @@ def _llm_transform(llm, system: str, timeout_s: float):
 def make_rewriter(llm, timeout_s: float = 1.2):
     return _llm_transform(llm, REWRITE_SYSTEM, timeout_s)
 
-
-def make_hyde(llm, timeout_s: float = 1.2):
-    return _llm_transform(llm, HYDE_SYSTEM, timeout_s)

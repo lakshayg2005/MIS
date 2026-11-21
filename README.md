@@ -83,7 +83,7 @@ curl -s localhost:8000/ask -H "Authorization: Bearer $(python -m scripts.issue_t
 * The hash includes the **model name**, so switching the embedding model never reuses vectors from another model. Reuse is **per company**.
 
 ## Retrieval techniques tried (the bonus), and how to switch them
-We compared hybrid, reranking, query rewriting, HyDE, three chunking strategies, two embedding models and document expansion on a hard 63-query benchmark with a dev/test split (full table in [EVALUATION.md](EVALUATION.md), section 17). **Shipped by default: fast MiniLM + cross-encoder rerank.** Everything else is a switch:
+We compared hybrid, reranking, query rewriting, three chunking strategies, two embedding models and document expansion on a hard 63-query benchmark with a dev/test split (full table in [EVALUATION.md](EVALUATION.md), section 17). **Shipped by default: fast MiniLM + cross-encoder rerank.** Everything else is a switch:
 
 | Setting | Effect | Measured cost / result |
 |---|---|---|

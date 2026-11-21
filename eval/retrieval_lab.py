@@ -1,7 +1,7 @@
 """Compare retrieval techniques on the hard benchmark (eval/retrieval_hard.jsonl), no answer generation involved.
 
     python -m eval.retrieval_lab                       # techniques that need no LLM
-    python -m eval.retrieval_lab --llm                 # also query rewriting, HyDE, doc2query (needs the Groq key)
+    python -m eval.retrieval_lab --llm                 # also query rewriting and doc2query (needs the Groq key)
     python -m eval.retrieval_lab --only baseline,hybrid
 
 Method: each technique gets a FRESH store built from the same three PDF policies. Every query is scored on whether the
@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 BENCH = ROOT / "eval" / "retrieval_hard.jsonl"
 
 # name -> options.  embedder: minilm (chroma runtime) | minilm-fast | bge-small ; mode: vector | hybrid ; rerank: bool ;
-# chunking: section | sentence | heading ; transform: none | rewrite | hyde ; expand: doc2query
+# chunking: section | sentence | heading ; transform: none | rewrite ; expand: doc2query
 TECHNIQUES = {
     "baseline":         dict(),
     "hybrid":           dict(mode="hybrid"),
@@ -39,7 +39,6 @@ TECHNIQUES = {
     "bge+rerank":       dict(embedder="bge-small", rerank=True),
     "bge+hybrid+rerank": dict(embedder="bge-small", mode="hybrid", rerank=True),
     "rewrite-llm":      dict(transform="rewrite", llm=True),
-    "hyde-llm":         dict(transform="hyde", llm=True),
     "doc2query-llm":    dict(expand=True, llm=True),
     "fast+doc2query":   dict(embedder="minilm-fast", expand=True, llm=True),
     "fast+rewrite":     dict(embedder="minilm-fast", transform="rewrite", llm=True),
@@ -76,7 +75,7 @@ def build(opts: dict, llm, sleep_s: float):
     from app.embeddings import make_embedder
     from app.expansion import Doc2Query
     from app.ingest import Ingestor
-    from app.query_transforms import make_hyde, make_rewriter
+    from app.query_transforms import make_rewriter
     from app.retrieval import Retriever
     from app.store import PolicyStore
 
@@ -92,7 +91,7 @@ def build(opts: dict, llm, sleep_s: float):
     if opts.get("rerank"):
         from app.rerank import CrossEncoderReranker
         rer = CrossEncoderReranker()
-    tr = {"rewrite": make_rewriter, "hyde": make_hyde}.get(opts.get("transform", ""), None)
+    tr = {"rewrite": make_rewriter}.get(opts.get("transform", ""), None)
     r = Retriever(store, emb, opts.get("mode", "vector"), 3, reranker=rer, pool=opts.get("pool", 10), transform=tr(llm) if tr else None)
     emb.embed(["warm up"])
     if rer:
