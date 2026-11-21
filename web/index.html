@@ -20,6 +20,16 @@
   select { padding:7px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); }
   .ghost { background:transparent; border:1px solid var(--line); border-radius:8px; padding:7px 12px; cursor:pointer; }
   .ghost:hover { border-color:var(--brand); color:var(--brand); }
+  .who { font-size:.85rem; color:var(--muted); }
+  [hidden] { display:none !important; }
+  .login { max-width:420px; margin:28px auto 0; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; }
+  .login h2 { margin:0 0 4px; font-size:1.15rem; } .login p { margin:0 0 14px; color:var(--muted); font-size:.9rem; }
+  .login label { display:block; font-size:.85rem; font-weight:600; margin:10px 0 4px; }
+  .login input { width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font:inherit; }
+  .login .send { width:100%; margin-top:14px; }
+  .login .err { color:var(--err); font-size:.88rem; margin-top:10px; min-height:1.2em; }
+  .demo { margin-top:16px; border-top:1px solid var(--line); padding-top:12px; font-size:.85rem; color:var(--muted); }
+  .demo .chips { justify-content:flex-start; margin-top:8px; }
   .policy { font-size:.78rem; color:var(--muted); max-width:820px; margin:6px auto 0; }
   main { flex:1; overflow-y:auto; padding:18px 16px 8px; }
   .thread { max-width:820px; margin:0 auto; display:flex; flex-direction:column; gap:14px; }
@@ -61,20 +71,27 @@
 <header>
   <div class="bar">
     <div class="logo">Commute Policy Assistant<small>Answers come only from your company's current transport policy</small></div>
-    <label class="sr" for="company" style="position:absolute;left:-9999px">Demo sign-in</label>
-    <select id="company" title="Demo sign-in: stands in for your company login">
-      <option value="acme">Acme Technologies employee</option>
-      <option value="borealis">Borealis Systems employee</option>
-      <option value="cygnus">Cygnus Labs employee</option>
-    </select>
-    <button class="ghost" id="newchat" type="button">New chat</button>
+    <span class="who" id="who"></span>
+    <button class="ghost" id="newchat" type="button" hidden>New chat</button>
+    <button class="ghost" id="signout" type="button" hidden>Sign out</button>
   </div>
   <div class="policy" id="policy"></div>
 </header>
 
-<main id="main"><div class="thread" id="thread"></div></main>
+<main id="main">
+  <form class="login" id="login" hidden autocomplete="on">
+    <h2>Sign in</h2>
+    <p>Use your company account. Your company is taken from your sign-in, and you only ever see answers from your own company's policy.</p>
+    <label for="email">Email</label><input id="email" type="email" autocomplete="username" required>
+    <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
+    <button class="send" id="loginbtn" type="submit">Sign in</button>
+    <div class="err" id="loginerr" role="alert"></div>
+    <div class="demo" id="demo" hidden>Demo accounts (this server runs in demo mode):<div class="chips" id="demochips"></div></div>
+  </form>
+  <div class="thread" id="thread" hidden></div>
+</main>
 
-<div class="composer">
+<div class="composer" id="composer" hidden>
   <div class="box">
     <textarea id="q" rows="1" maxlength="500" placeholder="Ask about your transport policy... (Enter to send, Shift+Enter for a new line)" aria-label="Your question"></textarea>
     <button class="send" id="send" type="button">Ask</button>
@@ -87,21 +104,58 @@ const $ = (id) => document.getElementById(id);
 const EXAMPLES = ["After what time is a security escort mandatory for women on drops?", "Can I book a cab on Saturday?",
   "Who approves an airport trip?", "What happens if I no-show twice?", "Are pets allowed in the cab?"];
 const KEY = "commute-chat-v1";
-let token = null, busy = false, turns = [];
+let token = null, busy = false, turns = [], company = "";
 
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-const save = () => { try { sessionStorage.setItem(KEY, JSON.stringify({company: $("company").value, turns})); } catch {} };
+const save = () => { try { sessionStorage.setItem(KEY, JSON.stringify({company, turns})); } catch {} };
 const scroll = () => { $("main").scrollTop = $("main").scrollHeight; };
 
-async function signIn() {
-  token = null; $("policy").textContent = "Signing in...";
+const TOKEN_KEY = "commute-token";
+let demoPassword = "";
+
+function showLogin(msg) {
+  token = null; try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
+  $("login").hidden = false; $("thread").hidden = true; $("composer").hidden = true;
+  $("signout").hidden = true; $("newchat").hidden = true; $("who").textContent = ""; $("policy").textContent = "";
+  $("loginerr").textContent = msg || ""; $("email").focus();
+}
+
+async function enter(tok) {
+  token = tok;
+  const r = await fetch("/me", {headers:{Authorization:"Bearer " + token}});
+  if (!r.ok) { showLogin("Your session expired. Please sign in again."); return false; }
+  const me = await r.json();
+  $("who").textContent = me.company + " \u00b7 " + me.role;
+  $("policy").textContent = me.policy ? "Answering from: " + me.policy.title + " \u00b7 version " + me.policy.version : "No policy is loaded for this company.";
+  const saved = (() => { try { return JSON.parse(sessionStorage.getItem(KEY) || "null"); } catch { return null; } })();
+  turns = saved && saved.company === me.company ? saved.turns : [];   // never show one company's chat to another sign-in
+  company = me.company;
+  $("login").hidden = true; $("thread").hidden = false; $("composer").hidden = false; $("signout").hidden = false; $("newchat").hidden = false;
+  renderAll(); $("q").focus();
+  return true;
+}
+
+async function login(email, password) {
+  $("loginerr").textContent = ""; $("loginbtn").disabled = true;
   try {
-    const r = await fetch("/demo/token", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({company: $("company").value})});
-    if (!r.ok) throw new Error();
-    token = (await r.json()).token;
-    const me = await (await fetch("/me", {headers:{Authorization:"Bearer " + token}})).json();
-    $("policy").textContent = me.policy ? "Answering from: " + me.policy.title + " · version " + me.policy.version : "No policy is loaded for this company.";
-  } catch { $("policy").textContent = "Could not sign in. Is the server running with DEMO_MODE=1?"; }
+    const r = await fetch("/auth/login", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({email, password})});
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 429) { $("loginerr").textContent = data.detail || "Too many attempts. Please wait a minute."; return; }
+    if (!r.ok) { $("loginerr").textContent = "Invalid email or password."; return; }
+    try { sessionStorage.setItem(TOKEN_KEY, data.token); } catch {}
+    $("password").value = "";
+    await enter(data.token);
+  } catch { $("loginerr").textContent = "Could not reach the server. Please try again."; }
+  finally { $("loginbtn").disabled = false; }
+}
+
+async function loadDemo() {
+  try {
+    const r = await fetch("/demo/accounts"); if (!r.ok) return;
+    const d = await r.json(); demoPassword = d.password; $("demo").hidden = false;
+    d.accounts.forEach((a) => { const b = el("button", "chip", a.company.charAt(0).toUpperCase() + a.company.slice(1) + " employee"); b.type = "button";
+      b.onclick = () => { $("email").value = a.email; $("password").value = demoPassword; login(a.email, demoPassword); }; $("demochips").append(b); });
+  } catch {}
 }
 
 function renderEmpty() {
@@ -173,7 +227,7 @@ function stageLine(card, text, detail) {
 async function send() {
   const q = $("q").value.trim();
   if (!q || busy) return;
-  if (!token) await signIn();
+  if (!token) { showLogin("Please sign in."); return; }
   busy = true; $("send").disabled = true; $("q").value = ""; updateCount();
   if (!turns.length) $("thread").replaceChildren();
   $("thread").append(el("div", "user", q));
@@ -182,7 +236,7 @@ async function send() {
   try {
     const r = await fetch("/ask/stream", {method:"POST", headers:{"Content-Type":"application/json", Authorization:"Bearer " + token}, body: JSON.stringify({question: q})});
     status = r.status;
-    if (r.status === 401) { token = null; data = {status:"error", answer:"Your session expired. Please ask again."}; }
+    if (r.status === 401) { showLogin("Your session expired. Please sign in again."); busy = false; $("send").disabled = false; return; }
     else if (r.status === 400) data = {status:"error", answer:"Questions must be 1 to 500 characters."};
     else if (!r.ok) data = await r.json().catch(() => ({status:"error"}));
     else {
@@ -212,10 +266,11 @@ $("send").onclick = send;
 $("q").addEventListener("input", updateCount);
 $("q").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
 $("newchat").onclick = () => { turns = []; save(); renderAll(); $("q").focus(); };
-$("company").onchange = () => { turns = []; save(); renderAll(); signIn(); };  // a different company = a different tenant: never carry a chat across
+$("signout").onclick = () => { turns = []; try { sessionStorage.removeItem(KEY); } catch {} showLogin("Signed out."); };
+$("login").addEventListener("submit", (e) => { e.preventDefault(); login($("email").value, $("password").value); });
 
-try { const s = JSON.parse(sessionStorage.getItem(KEY) || "null"); if (s && s.turns) { $("company").value = s.company; turns = s.turns; } } catch {}
-renderAll(); signIn();
+loadDemo();
+(async () => { let t = null; try { t = sessionStorage.getItem(TOKEN_KEY); } catch {} if (t) { await enter(t); } else { showLogin(""); } })();
 </script>
 </body>
 </html>

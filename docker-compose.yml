@@ -6,7 +6,8 @@ services:
       - path: .env        # optional: LLM_PROVIDER=groq and LLM_API_KEY=... (never committed)
         required: false
     environment:
-      DEMO_MODE: "1"      # enables the demo web page + /demo/token. Turn off outside demos.
+      DEMO_MODE: "1"      # serves the web page and seeds demo logins. Turn off outside demos.
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-demo-pass-123}   # password of the seeded demo accounts
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me-32-bytes!!}
       DATA_DIR: /data
     volumes:

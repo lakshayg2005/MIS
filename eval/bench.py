@@ -1,6 +1,6 @@
 """End-to-end latency over real HTTP (JWT, FastAPI, retrieval, REAL LLM call).
 
-    docker compose up -d            # DEMO_MODE=1 provides tokens
+    docker compose up -d            # DEMO_MODE=1 seeds the demo logins (employee@<company>.example)
     python -m eval.bench --base http://localhost:8000 --n 60
 
 Cycles through the answerable eval questions. Sleeps between requests to respect the free-tier rate
@@ -8,6 +8,7 @@ limit; the sleep is NOT counted in the latency (we time each request on its own)
 """
 import argparse
 import json
+import os
 import statistics
 import time
 from pathlib import Path
@@ -30,7 +31,7 @@ def main():
             c = cases[i % len(cases)]["input"]
             co = c["company"]
             if co not in tokens:
-                tokens[co] = http.post("/demo/token", json={"company": co}).json()["token"]
+                tokens[co] = http.post("/auth/login", json={"email": f"employee@{co}.example", "password": os.environ.get("DEMO_PASSWORD", "demo-pass-123")}).json()["token"]
             t = time.perf_counter()
             r = http.post("/ask", json={"question": c["question"]}, headers={"Authorization": "Bearer " + tokens[co]})
             ms = (time.perf_counter() - t) * 1000

@@ -47,7 +47,9 @@ The brief says: *"A question API behind a JWT that carries the company. Retrieva
 3. **"Restricted to that company on the server"**: the server reads the company from the verified token and searches only that company's policy data.
 4. **"No client-controlled override"**: there is no `company` field, query parameter or header that can change which company is searched. Sending `{"company": "borealis"}` in the body is simply ignored, and editing the token to say `borealis` invalidates the signature (HTTP 401).
 
-**Where it is used:** `app/auth.py` (`issue_token` = our mock identity provider; `verify_token` checks signature, expiry, issuer, audience, subject and company format, with the algorithm pinned; `current_principal` is the FastAPI dependency). Every endpoint depends on it: `/ask`, `/ask/stream`, `/me` and `/admin/policy` (admin role required, and an admin can only touch their own company). `scripts/issue_token.py` prints a token for testing; the demo page gets an employee token from `/demo/token` (demo mode only).
+**Where it is used:** `app/auth.py` (`issue_token` = our mock identity provider, used by `POST /auth/login`; `verify_token` checks signature, expiry, issuer, audience, subject and company format, with the algorithm pinned; `current_principal` is the FastAPI dependency). Every endpoint depends on it: `/ask`, `/ask/stream`, `/me` and `/admin/policy` (admin role required, and an admin can only touch their own company). `scripts/issue_token.py` prints a token for testing; the web page signs in through `POST /auth/login`. To add a user: `python -m scripts.create_user alice@acme.example acme employee 'a-long-password'`.
+
+**Login vs JWT:** the login (email + password) is how a user *proves who they are*; the JWT is what the server then trusts on every later request. The brief only asks us to build the issuer, so accounts here are a small SQLite table with scrypt hashes, enough to demonstrate the flow honestly. A production system would delegate login to the company's identity provider (SSO) and only *verify* tokens.
 
 ## API
 
@@ -58,7 +60,8 @@ The brief says: *"A question API behind a JWT that carries the company. Retrieva
 | `POST /ask/stream` | any employee JWT | same answer, delivered as Server-Sent Events: `stage` events (retrieving, drafting with the sections found), then ONE `final` event. Raw model tokens are **not** streamed (see trade-offs) |
 | `GET /me` | any JWT | which company/policy version this token answers from |
 | `GET /health` | none | liveness |
-| `POST /demo/token`, `GET /` | none, only if `DEMO_MODE=1` | demo web page and a stand-in login. **Off by default** |
+| `POST /auth/login` `{email, password}` | none (this is the login) | returns a signed JWT carrying the user's company and role. Generic 401 on any failure, 5 attempts/min per client+email, passwords stored only as salted scrypt hashes |
+| `GET /`, `GET /demo/accounts` | none, only if `DEMO_MODE=1` | the web page and its one-click demo logins. **Off by default**; demo mode also seeds `employee@<company>.example` and `admin@<company>.example` (password `demo-pass-123`, override with `DEMO_PASSWORD`) |
 
 Responses: `200 answered` (with citations), `200 not_covered`, `200 smalltalk` (greetings, thanks, "are you a dog?", "how do you work?", "do you store my chats?", "can you book a cab?": fixed truthful replies from plain code, no LLM call, no citations; only short messages that are *entirely* such a question match), `503 error` + `Retry-After` (try again), `401/403/400/413/415/422` for bad token/role/input/uploads.
 

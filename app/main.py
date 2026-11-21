@@ -20,6 +20,7 @@ from .llm import make_llm
 from .retrieval import Retriever
 from .service import ERROR_MSG, QuestionService
 from .store import PolicyStore
+from .users import UserStore
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("app")
@@ -80,6 +81,12 @@ def create_app(settings: Settings | None = None, llm=None, embedder=None) -> Fas
             expander = Doc2Query(the_llm, str(Path(settings.data_dir) / "doc2query_cache.json"))
         ingestor = Ingestor(store, emb, settings.max_policy_bytes, settings.embedder, settings.chunking, expander)
         seed_if_empty(settings, store, ingestor)
+        users = UserStore(str(Path(settings.data_dir) / "registry.db"))
+        if settings.demo_mode and users.count() == 0:  # demo accounts only in demo mode
+            for c in store.companies():
+                users.create(f"employee@{c}.example", c, "employee", settings.demo_password)
+                users.create(f"admin@{c}.example", c, "admin", settings.demo_password)
+        app.state.users = users
         emb.embed(["warm up"])  # load the model before the first user request
         reranker = None
         if settings.rerank:
@@ -98,6 +105,7 @@ def create_app(settings: Settings | None = None, llm=None, embedder=None) -> Fas
     app = FastAPI(title="Commute Policy Assistant", lifespan=lifespan)
     app.state.settings = settings
     app.state.limiter = RateLimiter(settings.rate_limit_per_min)
+    app.state.login_limiter = RateLimiter(5)  # 5 login attempts per minute per (client, email): slows password guessing
 
     @app.get("/health")
     def health():
@@ -110,17 +118,29 @@ def create_app(settings: Settings | None = None, llm=None, embedder=None) -> Fas
         return {"company": who.company, "role": who.role,
                 "policy": {"title": act[1], "version": act[0]} if act else None}
 
-    if settings.demo_mode:
-        class DemoTokenBody(BaseModel):
-            company: str
+    class LoginBody(BaseModel):
+        email: str = Field(min_length=3, max_length=200)
+        password: str = Field(min_length=1, max_length=200)
 
-        @app.post("/demo/token")
-        def demo_token(body: DemoTokenBody, request: Request):
-            """DEMO ONLY (DEMO_MODE=1): stands in for the company's login so the web page works.
-            Hands out EMPLOYEE tokens for known companies only; never an admin token."""
-            if body.company not in request.app.state.service.store.companies():
-                raise HTTPException(404, "unknown company")
-            return {"token": issue_token(settings, f"demo-employee@{body.company}", body.company, "employee", ttl_s=1800)}
+    @app.post("/auth/login")
+    def login(body: LoginBody, request: Request):
+        """email + password -> signed JWT carrying the company. Generic error, per-(client, email) rate limit."""
+        who = f"{request.client.host if request.client else '?'}:{body.email.strip().lower()}"
+        if not request.app.state.login_limiter.allow(who):
+            return JSONResponse({"detail": "Too many attempts. Please wait a minute and try again."}, status_code=429, headers={"Retry-After": "60"})
+        found = request.app.state.users.authenticate(body.email, body.password)
+        if found is None:
+            raise HTTPException(401, "Invalid email or password")
+        company, role = found
+        return {"token": issue_token(settings, body.email.strip().lower(), company, role, ttl_s=3600),
+                "company": company, "role": role, "expires_in": 3600}
+
+    if settings.demo_mode:
+        @app.get("/demo/accounts")
+        def demo_accounts(request: Request):
+            """DEMO ONLY: lists the seeded demo logins so the web page can offer one-click sign-in."""
+            return {"password": settings.demo_password,
+                    "accounts": [{"email": f"employee@{c}.example", "company": c} for c in request.app.state.service.store.companies()]}
 
         @app.get("/", include_in_schema=False)
         def index():

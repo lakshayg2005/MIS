@@ -14,7 +14,8 @@ class Settings:
     jwt_algorithm: str = "HS256"  # pinned: never read the algorithm from the token header
     jwt_issuer: str = "commute-demo-issuer"
     jwt_audience: str = "commute-policy-assistant"
-    demo_mode: bool = field(default_factory=lambda: os.getenv("DEMO_MODE", "0") == "1")  # exposes /demo/token for the web page. NEVER on in production
+    demo_password: str = field(default_factory=lambda: os.getenv("DEMO_PASSWORD", "demo-pass-123"))  # password of the seeded demo accounts (DEMO_MODE only)
+    demo_mode: bool = field(default_factory=lambda: os.getenv("DEMO_MODE", "0") == "1")  # serves the web page and seeds demo logins (employee@<company>.example). NEVER on in production
     quarantine_flagged: bool = field(default_factory=lambda: os.getenv("QUARANTINE_FLAGGED", "1") == "1")  # sections with instruction-like text are stored but never retrieved
     rate_limit_per_min: int = field(default_factory=lambda: int(os.getenv("RATE_LIMIT_PER_MIN", "20")))  # per user
     # --- storage ---
