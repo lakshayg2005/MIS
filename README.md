@@ -7,18 +7,26 @@ document, version, section and page, says plainly when the policy is silent, and
 ## Run it (one command)
 
 ```bash
-cp .env.example .env          # then put your free Groq key in LLM_API_KEY  (never committed)
-docker compose up             # first build downloads the embedding model into the image
+cp .env.example .env          # then put your free Groq key in LLM_API_KEY  (never committed; optional, see below)
+docker compose up             # first build downloads the models into the image
 ```
 
-Open <http://localhost:8000> (if the port is taken: `PORT=8010 docker compose up`).
-Without a key the app still starts, using an offline fake LLM; answers are then crude but safety rules still hold.
+Open <http://localhost:8000> (if the port is taken: `PORT=8010 docker compose up`) and sign in with one click as a demo employee
+of any company (accounts `employee@acme.example`, `employee@borealis.example`, `employee@cygnus.example`, password `demo-pass-123`).
+Without a key the app still starts, using an offline fake LLM; answers are then crude but every safety rule still holds.
+The three policies (about 14 pages each) are loaded automatically on first start.
+
+**Zero-setup checks, all inside the image (no Python install needed):**
+```bash
+docker compose run --rm api python -m eval.run --llm fake --no-write   # the evaluation set, offline, no key
+docker compose run --rm api python -m eval.groundedness                # groundedness report from the stored results
+```
 
 | Task | Command |
 |---|---|
 | Tests (fake LLM, no network, ~10 s) | `pip install -r requirements-dev.txt && python -m pytest -q` |
 | Evaluation set + score (real LLM, before/after) | `python -m eval.run` (see [EVALUATION.md](EVALUATION.md)) |
-| Offline evaluation | `python -m eval.run --llm fake` |
+| Offline evaluation (retrieval metrics are real; answer text is a crude stand-in) | `python -m eval.run --llm fake --no-write` |
 | Latency over HTTP | `python -m eval.bench --base http://localhost:8000` |
 | Get a token (mock identity provider) | `python -m scripts.issue_token acme` / `... borealis admin` |
 | Upload a new policy version | `python -m scripts.ingest_policy acme data/policies/acme_v2.pdf` |
@@ -35,9 +43,9 @@ Running without Docker: `pip install -r requirements.txt`, then
 | No obedience to instructions found inside retrieved documents | injected sections quarantined at ingestion; excerpts fenced as data; no tools; output validated | `test_injected_document_text_is_data_not_instructions`; eval `inj-*` cases; red-team run with quarantine off |
 | A question API behind a JWT that carries the company; retrieval restricted to that company on the server, no client-controlled override | `auth.py` + `store.py` + `retrieval.py` (see "How the JWT works here" below) | `test_auth_rejections`, `test_client_cannot_choose_company`, `test_retrieval_never_returns_another_companys_chunk` |
 | Ingestion of a policy, including a new version; only the new one answers; a failed ingestion leaves nothing half-updated | `ingest.py` atomic version switch | `tests/test_ingest_versions.py` |
-| Three short policy documents with overlapping, contradictory rules | `data/policies/` (Markdown + PDF, about 2 pages each, as the brief's requirement asks) | eval cross-company cases |
+| Three policy documents with overlapping, contradictory rules | `data/policies/`: full-length versions (13-14 pages each, PDF + Markdown) and `data/policies/short/`: 2-page versions of the same core rules (test fixtures). Both readings of the brief ("short" in the requirements, "10 to 30 pages" in the context) are covered; the contradictory core is identical in both | eval cross-company cases |
 | At most 2 LLM calls and at most 3 cited chunks | `service.py` loop + `top_k = 3` | `test_never_more_than_two_llm_calls_and_three_citations` |
-| Evaluation set (10+ questions, JSONL), retrieval and answer quality, rerunnable | `eval/evalset.jsonl` (48 cases), `python -m eval.run` | [EVALUATION.md](EVALUATION.md) |
+| Evaluation set (10+ questions, JSONL with `id, input, expected, actual, pass, notes`), retrieval and answer quality, rerunnable | `eval/evalset.jsonl` (48 cases), `python -m eval.run` | [EVALUATION.md](EVALUATION.md) |
 | Bonus: a retrieval improvement, before and after | reranking + faster runtime shipped; many others measured | [EVALUATION.md](EVALUATION.md) sections 16-22 |
 
 ## How the JWT works here
@@ -79,7 +87,7 @@ curl -s localhost:8000/ask -H "Authorization: Bearer $(python -m scripts.issue_t
                           service.py       (every safety decision is plain code)
    1 retrieve ─► Chroma collection of THAT company, ACTIVE version only (SQLite says which),
                  10 candidates, then a cross-encoder reranks them and we keep the top 3
-                 vector search (hybrid = vector + BM25 is optional, see EVALUATION.md); top 3; timeout 1 s; fail-closed company check on every chunk
+                 hybrid search (vector + BM25) then a cross-encoder reranker over 6 candidates; top 3; timeout 1 s; fail-closed company check on every chunk
    2 no/weak evidence? ─► "not covered" immediately, WITHOUT calling the LLM
    3 ONE LLM call: excerpts fenced as DATA, JSON answer + numbers of the excerpts used
    4 validate: JSON shape, cited numbers ⊆ excerpts given, ≤3, ≥1, no other company named, and every number
@@ -112,9 +120,9 @@ We compared hybrid, reranking, query rewriting, three chunking strategies, two e
 
 | Setting | Effect | Measured cost / result |
 |---|---|---|
-| `RERANK=1` (default) / `0` | cross-encoder reranking | best no-LLM gain |
+| `RERANK=1` (default) / `0`, `RERANK_POOL=6` | cross-encoder reranking and how many candidates it reads | best no-LLM gain; cost grows with the pool (about 40 ms per candidate on 1.5 KB sections) |
 | `EMBEDDER=minilm-fast` (default) / `minilm` / `bge-small` | embedding model/runtime | `minilm-fast` is 30x faster; `bge-small` worse |
-| `RETRIEVAL_MODE=vector` (default) / `hybrid` | adds BM25 keyword fusion | small gain, none on top of rerank |
+| `RETRIEVAL_MODE=hybrid` (default) / `vector` | BM25 keyword fusion feeding the reranker | on full-length policies hybrid + rerank(6) has the best MRR and is faster than rerank over 10 vector candidates |
 | `QUERY_REWRITE=1` | LLM rewrites the question first | same quality as rerank, +1 LLM call, +~0.5 s |
 | `EXPAND_QUESTIONS=1` | LLM writes likely questions per chunk at ingestion | good recall, free at question time, LLM cost at ingestion |
 | `CHUNKING=section` (default) / `sentence` / `heading` | chunk granularity | both alternatives measured worse |
@@ -165,13 +173,16 @@ Clustering or index tuning could save about 1 ms, so it was **not built** (about
 | Free tier Groq (8k tokens/min) | zero cost per the rules | ≈ 10 questions/minute; see limitations |
 
 ## Policy length: "10 to 30 pages" vs "short documents"
-The brief's context says real policies are 10-30 pages; its requirements ask for three *short* sample documents. We did both: the samples are short, and the system is built and **stress-tested for long ones** (synthetic 16-page, 168-section policy: ingests in about 1.3 s, a one-sentence update re-embeds 1 chunk, search stays fast; see [EVALUATION.md](EVALUATION.md) section 22). Limits: 10 MB upload, 100 pages, sections must be numbered (`3.1 Title`). On long, repetitive policies plain vector search confuses near-duplicate sections, so consider `RETRIEVAL_MODE=hybrid`.
+The brief's context says real policies are 10-30 pages; its requirements ask for "three short policy documents" ("short" is not defined). We cover **both** readings:
+* `data/policies/` holds three **full-length policies (13-14 pages, about 9,000 words each)**: the verified numbered core rules (sections 1-7/8, the contradictory ones the evaluation checks) followed by realistic chapters (definitions, roles, rosters, vehicles and drivers, tracking, safety procedures, contingency, grievances, audit, governance). The extra chapters were drafted by an LLM under two checked constraints: no numbers or amounts (so they cannot compete with a core rule) and no mention of another company (`scripts/gen_long_policies.py`). These are what the app loads and what the evaluation runs on.
+* `data/policies/short/` holds the **2-page** versions of the same core rules; the unit tests use them because exact chunk counts are asserted.
+Also stress-tested with a synthetic multi-site policy (168 near-duplicate sections): ingests in about 1.3 s; a one-sentence update re-embeds 1 chunk ([EVALUATION.md](EVALUATION.md)). Limits: 10 MB upload, 100 pages, numbered sections (`3.1 Title`).
 
 ## Limitations and known failures
 * The LLM can still mis-phrase an answer inside valid citations; the citation card lets the user verify, and the eval set measures how often.
 * Groq's free tier limits to ~8,000 tokens/minute: under heavier load users get "try again". A paid tier, a second provider as fallback, or a local model would fix it.
 * Policies must follow the numbered-section structure (`3.1 Title`); free-form PDFs are rejected.
-* No per-user rate limiting, no audit database, no question history (by choice: privacy and scope).
+* Basic per-user rate limiting only (20 questions/min), no audit database, no server-side question history (by choice: privacy and scope).
 * The injection regex only *reports* suspicious text; it is not the defence.
 * Latency numbers are from one dev machine with a free API, not production figures.
 
