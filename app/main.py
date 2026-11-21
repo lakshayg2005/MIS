@@ -97,7 +97,7 @@ def create_app(settings: Settings | None = None, llm=None, embedder=None) -> Fas
         if settings.query_rewrite:
             from .query_transforms import make_rewriter
             transform = make_rewriter(the_llm)
-        retriever = Retriever(store, emb, settings.retrieval_mode, settings.top_k, reranker=reranker, transform=transform)
+        retriever = Retriever(store, emb, settings.retrieval_mode, settings.top_k, reranker=reranker, transform=transform, pool=settings.rerank_pool)
         app.state.service = QuestionService(settings, store, retriever, the_llm)
         app.state.ingestor = ingestor
         yield

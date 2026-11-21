@@ -95,7 +95,9 @@ def answer_metrics(case: dict, ans, question: str) -> dict:
     }
 
 
-def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float, judge_model: str = "") -> tuple:
+def run_mode(label: str, cases: list, llm_name: str, sleep_s: float, judge_model: str = "") -> tuple:
+    """label = retrieval pipeline, e.g. "vector" (plain vector search, the BEFORE) or "hybrid+rerank" (what the app ships)."""
+    mode, use_rerank = label.split("+")[0], "rerank" in label.split("+")
     from app.config import Settings
     from app.embeddings import make_embedder
     from app.ingest import Ingestor
@@ -104,7 +106,7 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float, judge_model:
     from app.service import QuestionService
     from app.store import PolicyStore
 
-    s = Settings(data_dir=tempfile.mkdtemp(), retrieval_mode=mode, llm_provider=llm_name)
+    s = Settings(data_dir=tempfile.mkdtemp(), retrieval_mode=mode, llm_provider=llm_name, rerank=use_rerank)
     emb, store = make_embedder(s.embedder), PolicyStore(s.data_dir, include_flagged=not s.quarantine_flagged)
     ing = Ingestor(store, emb, s.max_policy_bytes, s.embedder)
     from app.main import seed_if_empty
@@ -114,10 +116,11 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float, judge_model:
         from app.rerank import CrossEncoderReranker
         reranker = CrossEncoderReranker()
         reranker.rerank("warm", [{"title": "a", "text": "b"}, {"title": "c", "text": "d"}])
-    retriever = Retriever(store, emb, mode, s.top_k, reranker=reranker)
+    retriever = Retriever(store, emb, mode, s.top_k, reranker=reranker, pool=s.rerank_pool if use_rerank else 10)
     svc = QuestionService(s, store, retriever, make_llm(llm_name, s.llm_api_key, s.llm_model))
     emb.embed(["warm up"])
-    judge_llm = make_llm("groq", s.llm_api_key, judge_model) if judge_model and llm_name != "fake" else None
+    _d = Settings()
+    judge_llm = make_llm("groq", s.llm_api_key, judge_model) if judge_model and llm_name != "fake" and label == _d.retrieval_mode + ("+rerank" if _d.rerank else "") else None  # judge only the shipped pipeline (saves quota)
     from eval import metrics as M
 
     rows, retr_ms, rmetrics = [], [], []
@@ -150,7 +153,7 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float, judge_model:
             am["judge_faithful"], am["judge_relevant"] = llm_judge(judge_llm, ans, q)
             time.sleep(1.5)
         rows.append({"case": case, "ok": ok, "notes": notes, "leak": leak, "ans": ans, "top3": got[:3], "am": am})
-        print(f"[{mode:6}] {'PASS' if ok else 'FAIL'} {case['id']:<18} {ans.status:<12} {ans.latency_ms:>5}ms  {'; '.join(notes)}")
+        print(f"[{label:13}] {'PASS' if ok else 'FAIL'} {case['id']:<18} {ans.status:<12} {ans.latency_ms:>5}ms  {'; '.join(notes)}")
         if llm_name != "fake" and ans.llm_calls:
             time.sleep(sleep_s)  # stay under the free-tier requests/minute limit
 
@@ -163,7 +166,7 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float, judge_model:
     answerable_rows = [r for r in rows if r["case"]["expected"]["sections"]]
     judged = [a for a in ams if a.get("judge_faithful") is not None]
     summary = {
-        "mode": mode, "llm": llm_name, "cases": len(rows),
+        "mode": label, "llm": llm_name, "cases": len(rows),
         "case_pass_pct": pct(sum(r["ok"] for r in rows), len(rows)),
         "retrieval": {k: M.mean([m[k] for m in rmetrics]) for k in rmetrics[0]},
         "answer_quality": {
@@ -193,7 +196,7 @@ def run_mode(mode: str, cases: list, llm_name: str, sleep_s: float, judge_model:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--modes", default="vector,hybrid")
+    ap.add_argument("--modes", default="vector,hybrid+rerank", help="retrieval pipelines to compare: vector (before) , hybrid+rerank (shipped), vector+rerank, hybrid ...")
     ap.add_argument("--llm", default=None, help="groq|gemini|fake (default: LLM_PROVIDER from .env, else fake)")
     ap.add_argument("--sleep", type=float, default=6.0, help="seconds between LLM cases: Groq free tier allows ~8000 tokens/min")
     ap.add_argument("--judge", default="", help="optional LLM-judge model on Groq, e.g. openai/gpt-oss-120b (extra calls, eval only)")
@@ -225,7 +228,8 @@ def main():
     (RESULTS / f"summary_{llm}.json").write_text(json.dumps(summaries, indent=1) + "\n")
 
     from app.config import Settings
-    shipped = Settings().retrieval_mode  # the evalset file records the mode the app ships with
+    _s = Settings()
+    shipped = _s.retrieval_mode + ("+rerank" if _s.rerank else "")  # the evalset file records the pipeline the app ships with
     if not args.no_write and shipped in rows_by_mode:
         with open(EVALSET, "w") as f:
             for r in rows_by_mode[shipped]:
