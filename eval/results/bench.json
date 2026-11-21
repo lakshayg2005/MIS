@@ -5,8 +5,8 @@
   "not_covered": 9,
   "smalltalk": 5
  },
- "p50_ms": 620,
- "p95_ms": 863,
- "max_ms": 1229,
+ "p50_ms": 507,
+ "p95_ms": 737,
+ "max_ms": 1115,
  "target_p95_ms": 3000
 }

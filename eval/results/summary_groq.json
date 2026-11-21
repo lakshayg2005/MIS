@@ -16,10 +16,10 @@
   "answer_quality": {
    "answered_cases": 33,
    "fact_recall": 1.0,
-   "citation_precision": 0.952,
+   "citation_precision": 0.968,
    "citation_recall": 1.0,
    "numeric_hallucination_rate": 0.0,
-   "support_ratio_mean": 0.877,
+   "support_ratio_mean": 0.885,
    "guardrail_rejected_attempts": 0,
    "judge_faithful_rate": 1.0,
    "judge_relevant_rate": 1.0,
@@ -30,10 +30,10 @@
   "not_covered_precision_pct": 85.7,
   "cross_company_leaks": 0,
   "errors_503": 0,
-  "latency_ms_p50": 774,
-  "latency_ms_p95": 892,
-  "retrieval_only_ms_p50": 180.2,
-  "retrieval_only_ms_p95": 244.4,
+  "latency_ms_p50": 502,
+  "latency_ms_p95": 930,
+  "retrieval_only_ms_p50": 99.3,
+  "retrieval_only_ms_p95": 152.6,
   "max_llm_calls": 1,
   "max_citations": 2
  }

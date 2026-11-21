@@ -139,6 +139,9 @@ Clustering or index tuning could save about 1 ms, so it was **not built** (about
 | **No server-side conversation storage** | Privacy (questions can be sensitive), nothing to leak across tenants, no retention/GDPR duty, and every question stays independent so the 2-call / 3-chunk limits hold. The chat lives only in the browser tab (sessionStorage) and is cleared on company switch | no follow-up questions ("and on Sunday?"): each question must stand alone. Follow-ups would need history in the prompt (more tokens, more injection surface, per-user storage). Listed as future work |
 | Free tier Groq (8k tokens/min) | zero cost per the rules | ≈ 10 questions/minute; see limitations |
 
+## Policy length: "10 to 30 pages" vs "short documents"
+The brief's context says real policies are 10-30 pages; its requirements ask for three *short* sample documents. We did both: the samples are short, and the system is built and **stress-tested for long ones** (synthetic 16-page, 168-section policy: ingests in about 1.3 s, a one-sentence update re-embeds 1 chunk, search stays fast; see [EVALUATION.md](EVALUATION.md) section 22). Limits: 10 MB upload, 100 pages, sections must be numbered (`3.1 Title`). On long, repetitive policies plain vector search confuses near-duplicate sections, so consider `RETRIEVAL_MODE=hybrid`.
+
 ## Limitations and known failures
 * The LLM can still mis-phrase an answer inside valid citations; the citation card lets the user verify, and the eval set measures how often.
 * Groq's free tier limits to ~8,000 tokens/minute: under heavier load users get "try again". A paid tier, a second provider as fallback, or a local model would fix it.

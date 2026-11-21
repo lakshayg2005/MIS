@@ -262,7 +262,7 @@ R@k = recall@k (share of the labelled sections found in the top k), MRR = mean r
 ## 19. Decision: new defaults and what each costs
 **Shipped:** `EMBEDDER=minilm-fast` + `RERANK=1` (cross-encoder `ms-marco-MiniLM-L-6-v2`, 10 candidates, return 3). Complexity cost: one extra dependency (`fastembed`), one small module (`app/rerank.py`, 15 lines), two models baked into the Docker image. Optional switches, all off: `QUERY_REWRITE=1`, `EXPAND_QUESTIONS=1`, `CHUNKING=sentence|heading`, `RETRIEVAL_MODE=hybrid`.
 
-**End-to-end regression with the shipped pipeline** (48 cases, real Groq, judge on): 47/48 pass (97.9 %); recall@3 **1.0**; hit@1 0.875; MRR 0.938; nDCG@3 0.954; judge faithful 100 %; numeric hallucination 0 %; leaks 0; 503 errors 0; p50/p95 774/892 ms. Raw: `results/summary_groq_shipped_fast_rerank.json`.
+**End-to-end regression with the shipped pipeline** (48 cases, real Groq, judge on): 47/48 pass (97.9 %); recall@3 **1.0**; hit@1 0.875; MRR 0.938; nDCG@3 0.954; judge faithful 100 %; numeric hallucination 0 %; leaks 0; 503 errors 0; p50/p95 **502/930 ms**; retrieval stage alone p50 99 ms. Raw: `results/summary_groq_shipped_fast_rerank.json`.
 * The one failure is `hard-grade-acme`: the **model** answers "not covered" instead of applying the 8 km rule to "L2, 7 km". It is the known flaky case (it passed in earlier runs and failed in others); retrieval gave it the right section.
 * **Honest wrinkle:** on our original, cleaner questions reranking moved the right section from rank 1 to rank 2 for four queries (e.g. "no-show twice": the reranker prefers §7.2 "repeated no-shows" over §7.1), so hit@1 fell from 0.969 to 0.875. recall@3 stayed 1.0 and all four answers were still correct because the model sees all three sections. So the gain is on hard queries (recall@3 and rank-1 there), not on already-easy ones. Over all 95 answerable queries, recall@3 improves from about 0.91 to 0.96 and rank-1 accuracy is about equal.
 
@@ -271,8 +271,26 @@ R@k = recall@k (share of the labelled sections found in the top k), MRR = mean r
 * **Call cap:** a rewrite call counts toward the 2-call cap. A naive "calls > 0 means this is a retry" check would have skipped the first answer attempt after a rewrite; fixed and tested (`test_rewrite_call_counts_toward_the_cap_but_never_blocks_the_first_answer`).
 * A version pin for `fastembed` I had not tested (0.8.0) was corrected to the tested 0.9.1.
 
+* **Wrong default, caught late:** I first changed the embedder default with an edit that silently did not apply, so my first "shipped pipeline" numbers (regression p50/p95 774/892 ms, HTTP p50/p95 620/863 ms) were measured with reranking on the OLD slower embedder. I noticed when a scale-test latency (151 ms) contradicted the 5 ms measured earlier. Fixed, a guard test added (`test_default_embedder_is_the_fast_runtime`), and both measurements were redone; the numbers in this report are the corrected ones. Quality was identical (the same model); only speed changed.
+
 ## 21. Limits of this experiment
 63 queries (30 test) written by the same person who wrote the policies; a one-query difference is 1.6 to 3.3 points, so gaps of 0.03 to 0.05 are within noise, and only the larger effects (reranking, the embedding speedup) should be trusted. No confidence intervals were computed. Policies are short (about 15 chunks per company); techniques such as hybrid search, doc2query and sentence chunking may behave differently on 30-page documents. The LLM techniques ran on one model (`gpt-oss-20b`).
 
-**HTTP benchmark of the shipped pipeline** (Docker container, real Groq, fast MiniLM + rerank, `python -m eval.bench --n 45`): 45 requests, 0 errors (31 answered, 9 not covered, 5 small talk), **p50 620 ms, p95 863 ms, max 1,229 ms** (target p95 < 3 s). Raw: `results/bench.json`.
+**HTTP benchmark of the shipped pipeline** (Docker container, real Groq, fast MiniLM + rerank, `python -m eval.bench --n 45`): 45 requests, 0 errors (31 answered, 9 not covered, 5 small talk), **p50 507 ms, p95 737 ms, max 1,115 ms** (target p95 < 3 s). Raw: `results/bench.json`.
 **Reliability note:** during this work the machine's network to Groq and Docker Hub intermittently reset connections. A connection that never opens is now retried once (safe: nothing reached the model); everything else keeps the "no retry, clear try-again" behaviour.
+
+## 22. Do we cope with 10-30 page policies? (the brief says "10 to 30 pages" in context but "short documents" in requirements)
+**How the two statements fit:** the context describes the real-world problem we must be able to handle (long policies); the requirement tells us what to build for the demo (three *short* sample policies, no realistic backend). We did both: the three sample policies are short (about 2 pages each, as required), and the design is meant for long ones: chunking by numbered section, an index (not a scan), per-chunk incremental embedding, a 100-page cap and a 10 MB upload limit (raised from 200 KB after realising real HR PDFs are often 0.5-5 MB).
+**What we had not done:** test a long document. `python -m eval.scale_test` builds a synthetic multi-site policy (12 office sites, the same 14 topics repeated per site with different numbers, so many sections look alike: a deliberate distractor test), renders it to a real PDF, ingests it, and asks one targeted question per section (168 questions).
+
+| Measure | Result |
+|---|---|
+| Size | 16 PDF pages, 168 chunks (27 KB) |
+| First ingestion (extract, chunk, embed, store) | 1.31 s |
+| Update with ONE sentence changed | 1 chunk embedded, 167 reused, 0.53 s |
+| Vector search only | recall@1 0.929, recall@3 1.0, p50 7.5 ms |
+| Hybrid (vector + BM25) | recall@1 1.0, recall@3 1.0, p50 5.7 ms |
+| **Vector + rerank (shipped)** | recall@1 1.0, recall@3 1.0, p50 150.4 ms |
+
+**Reading it:** nothing breaks at this size: ingestion is seconds, and an update only re-embeds what changed. Search time is dominated by whether we rerank (about 145 ms for 10 candidates of longer text), not by document size. On near-duplicate sections, plain vector search starts to confuse them (rank-1 0.929) while **hybrid and reranking both fix it** (1.0): so the techniques that were marginal on short documents matter more on long, repetitive ones. Hybrid is almost free here, so for a corpus like this `RETRIEVAL_MODE=hybrid` is worth switching on.
+**Caveats:** synthetic and templated (not real prose); 16 pages rather than 30 because the sections are short, but 168 chunks is in the range of a real 20-30 page policy; the task is easy in one respect (every query names its site). A real long document would also need real section structure, which our parser requires ("3.1 Title").
