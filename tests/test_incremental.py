@@ -88,3 +88,9 @@ def test_api_reports_embedded_and_reused(make_client, tok, policy_text):
     c = make_client()
     r = c.put("/admin/policy", content=policy_text("acme_v2.md"), headers={**tok("acme", "admin"), "Content-Type": "text/markdown"})
     assert r.status_code == 200 and r.json()["embedded_chunks"] == 6 and r.json()["reused_chunks"] == 9
+
+
+def test_default_embedder_is_the_fast_runtime():
+    """Guards against the config default silently reverting (the shipped speed claim depends on it)."""
+    from app.config import Settings
+    assert Settings().embedder == "minilm-fast"

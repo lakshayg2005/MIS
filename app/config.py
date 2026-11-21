@@ -21,7 +21,7 @@ class Settings:
     data_dir: str = field(default_factory=lambda: os.getenv("DATA_DIR", "./var"))
     seed_dir: str = field(default_factory=lambda: os.getenv("SEED_DIR", "./data/policies"))
     # --- retrieval ---
-    embedder: str = field(default_factory=lambda: os.getenv("EMBEDDER", "minilm"))  # minilm | hash
+    embedder: str = field(default_factory=lambda: os.getenv("EMBEDDER", "minilm-fast"))  # minilm-fast (default: same MiniLM weights, ~30x faster runtime) | minilm | bge-small | hash
     retrieval_mode: str = field(default_factory=lambda: os.getenv("RETRIEVAL_MODE", "vector"))  # vector | hybrid
     rerank: bool = field(default_factory=lambda: os.getenv("RERANK", "1") == "1")  # cross-encoder reranking of the top candidates (measured: +0.10 recall@1)
     query_rewrite: bool = field(default_factory=lambda: os.getenv("QUERY_REWRITE", "0") == "1")  # LLM rewrites the question first: +1 LLM call, +~0.5 s (off: measured no better than reranking)

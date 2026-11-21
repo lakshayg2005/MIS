@@ -1,0 +1,30 @@
+{
+ "pages": 16,
+ "chunks": 168,
+ "pdf_kb": 27,
+ "queries": 168,
+ "ingest_s_first_time": 3.58,
+ "vector": {
+  "recall@1": 0.929,
+  "recall@3": 1.0,
+  "latency_ms_p50": 148.1,
+  "latency_ms_p95": 198.2
+ },
+ "hybrid": {
+  "recall@1": 1.0,
+  "recall@3": 1.0,
+  "latency_ms_p50": 146.8,
+  "latency_ms_p95": 175.4
+ },
+ "vector+rerank (shipped)": {
+  "recall@1": 1.0,
+  "recall@3": 1.0,
+  "latency_ms_p50": 221.2,
+  "latency_ms_p95": 271.9
+ },
+ "update_one_sentence": {
+  "embedded": 1,
+  "reused": 167,
+  "seconds": 0.71
+ }
+}
