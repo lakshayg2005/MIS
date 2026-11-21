@@ -1,9 +1,17 @@
 {
- "answered_cases": 33,
- "sentences": 40,
- "sentence_groundedness_pct": 100.0,
- "fully_grounded_answers_pct": 100.0,
+ "answered_cases": 35,
+ "sentences": 57,
+ "sentence_groundedness_pct": 98.2,
+ "fully_grounded_answers_pct": 97.1,
  "citation_validity_pct": 100.0,
  "numeric_grounding_pct": 100.0,
- "flagged_sentences": []
+ "flagged_sentences": [
+  {
+   "id": "cap-borealis",
+   "sentence": "Any amount exceeding this cap is not reimbursed.",
+   "cited": [
+    "5.3"
+   ]
+  }
+ ]
 }

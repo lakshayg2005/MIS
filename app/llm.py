@@ -15,7 +15,7 @@ class LLMError(Exception):
 
 
 PROVIDERS = {
-    "groq": ("https://api.groq.com/openai/v1", "openai/gpt-oss-20b"),
+    "groq": ("https://api.groq.com/openai/v1", "qwen/qwen3.8-27b")  # the model the official evaluation ran on; override with LLM_MODEL (openai/gpt-oss-20b was used in earlier runs),
     "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-2.0-flash"),
 }
 
